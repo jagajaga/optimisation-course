@@ -70,8 +70,8 @@ main = do
     l <- getLine
     putStrLn "Enter maximal x:"
     r <- getLine
-    let (d_x_min, d_log) = runWriter $ dichotomy myFunc (read l) (read r) 0.01 0.01
-    let (g_x_min, g_log) = runWriter $ goldenRatio myFunc (read l) (read r) 0.01
+    let (d_x_min, d_log) = runWriter $ dichotomy myFunc (read l) (read r) 0.1 0.01
+    let (g_x_min, g_log) = runWriter $ goldenRatio myFunc (read l) (read r) 0.1
     let (f_x_min, f_log) = runWriter $ fibonacci myFunc (read l) (read r) 20
     putStrLn "dichotomy"
     putStrLn $ "d_x_min = "  ++ show d_x_min
