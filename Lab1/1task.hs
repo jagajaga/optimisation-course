@@ -25,14 +25,14 @@ robinMethod f l r n = do
 dichotomy :: (Double -> Double)   -- f
          -> Double -> Double    -- interval
          -> Double              -- eps
-         -> Double              -- beta
          -> Writer [String] Double
-dichotomy f l r eps beta = do
+dichotomy f l r eps = do
     tell (["l = " ++ show l ++ "; r = " ++ show r])
     if r - l < eps then return $ (l + r) / 2
                    else
-                       if f1 < f2 then dichotomy f l x2 eps beta else dichotomy f x1 r eps beta
-                       where x1 = (l + r - beta) / 2
+                       if f1 < f2 then dichotomy f l x2 eps else dichotomy f x1 r eps
+                       where beta = (r - l) / 10
+                             x1 = (l + r - beta) / 2
                              x2 = (l + r + beta) / 2
                              f1 = f x1
                              f2 = f x2
@@ -86,10 +86,14 @@ main = do
     l <- getLine
     putStrLn "Enter maximal x:"
     r <- getLine
-    let (r_x_min, r_log) = runWriter $ robinMethod myFunc (read l) (read r) 1000
-    let (d_x_min, d_log) = runWriter $ dichotomy myFunc (read l) (read r) 0.1 0.01
-    let (g_x_min, g_log) = runWriter $ goldenRatio myFunc (read l) (read r) 0.1
-    let (f_x_min, f_log) = runWriter $ fibonacci myFunc (read l) (read r) 1000 0.1
+    putStrLn "Enter iterations count for robin method and fibonacci method:"
+    n <- getLine
+    putStrLn "Enter eps for dichotomy and golden ratio:"
+    eps <- getLine
+    let (r_x_min, r_log) = runWriter $ robinMethod myFunc (read l) (read r) (read n)
+    let (d_x_min, d_log) = runWriter $ dichotomy myFunc (read l) (read r) (read eps)
+    let (g_x_min, g_log) = runWriter $ goldenRatio myFunc (read l) (read r) (read eps)
+    let (f_x_min, f_log) = runWriter $ fibonacci myFunc (read l) (read r) (read n) (read eps)
     putStrLn "robin"
     putStrLn $ "r_x_min = "  ++ show r_x_min
     mapM_ (putStrLn . show) $ zip [1..] r_log
