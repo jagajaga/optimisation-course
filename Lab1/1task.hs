@@ -9,7 +9,7 @@ fib n = fromIntegral $ round $ phi ** fromIntegral n / sq5
     phi = (1 + sq5) / 2
 
 myFunc :: Double -> Double
-myFunc x = x * x
+myFunc x = abs $ x ** 3 - 30
 
 robinMethod :: (Double -> Double)
             -> Double -> Double
