@@ -1,5 +1,7 @@
 import math
 import random
+import timeit
+import bisect
 
 import matplotlib.pyplot as plt
 
@@ -38,41 +40,45 @@ class PiecewiseLinearFunction(object):
         self.a = g.a
         self.b = g.b
         self.l = g.l
-        self.candidates_for_min = [self.a, self.b]
+        self.candidates_for_min = {self.a, self.b}
         self.x0s = [g.x0]
+        self.arg_min = g.arg_min
 
     def compose_with_g(self, g):
         self.functions.append(g)
-        left = None
-        for x0 in self.x0s:
-            if x0 < g.x0 and (left is None or left < x0):
-                left = x0
-        if left is not None:
+        left_idx = bisect.bisect_left(self.x0s, g.x0) - 1
+        if left_idx >= 0:
+            left = self.x0s[left_idx]
             left_intersection = ((g.x0 + left) - (self.f(g.x0) - self.f(left)) / self.l) / 2
-            if left_intersection > self.a:
-                self.candidates_for_min.append(left_intersection)
-        right = None
-        for x0 in self.x0s:
-            if x0 > g.x0 and (right is None or right > x0):
-                right = x0
-        if right is not None:
+            if left_intersection >= self.a:
+                self.candidates_for_min.add(left_intersection)
+        right_idx = bisect.bisect_right(self.x0s, g.x0)
+        if right_idx < len(self.x0s):
+            right = self.x0s[right_idx]
             right_intersection = ((g.x0 + right) + (self.f(g.x0) - self.f(right)) / self.l) / 2
-            if right_intersection < self.b:
-                self.candidates_for_min.append(right_intersection)
-        self.x0s.append(g.x0)
+            if right_intersection <= self.b:
+                self.candidates_for_min.add(right_intersection)
+        self.candidates_for_min.remove(g.x0)
+        self.update_min()
+        bisect.insort(self.x0s, g.x0)
 
-    def arg_min(self):
-        res = self.candidates_for_min[0]
+    def update_min(self):
+        self.arg_min = None
+        cur_min = None
         for c in self.candidates_for_min:
-            if self(c) < self(res):
-                res = c
-        return res
+            v = self(c)
+            if cur_min is None or self(c) < cur_min:
+                self.arg_min = c
+                cur_min = v
 
     def __call__(self, x, not_increase_counter=False):
         return max(g(x, not_increase_counter) for g in self.functions)
 
 
 def piyavskii(lipschitz_function, eps):
+    print("Running Piyavskii's method with eps = {}".format(eps))
+    start = timeit.default_timer()
+
     a = lipschitz_function.a
     b = lipschitz_function.b
     x_min = random.uniform(a, b)
@@ -81,29 +87,29 @@ def piyavskii(lipschitz_function, eps):
     args_for_plot = [i / 100. for i in range(int(a) * 100, int(b) * 100)]
     while True:
         old_x_min = x_min
-        x_min = p.arg_min()
+        x_min = p.arg_min
         yield x_min
         if abs(x_min - old_x_min) < eps:
             break
         p.compose_with_g(GFunction(lipschitz_function, x_min))
 
+    print('Running time = {} sec'.format(timeit.default_timer() - start))
+
     plt.plot(args_for_plot, [p(x, True) for x in args_for_plot])
     plt.show()
-    return p.arg_min()
 
 
 def main():
     f = lambda x: abs(math.sin(x) - .5)
-    lipschitz_function = LipschitzFunction(f, -10., 5., 1.)
+    lipschitz_function = LipschitzFunction(f, -1., 5., 1.)
     eps = 1e-4
     iterations_count = 0
-    print("Running Piyavskii's method with eps =", eps)
     for x in piyavskii(lipschitz_function, eps):
         iterations_count += 1
         print(x)
 
-    print('Iterations count =', iterations_count)
-    print('Calls count = ', lipschitz_function.calls_count)
+    print('Iterations count = {}'.format(iterations_count))
+    print('Calls count = {}'.format(lipschitz_function.calls_count))
 
 
 if __name__ == '__main__':
