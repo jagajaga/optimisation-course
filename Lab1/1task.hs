@@ -1,4 +1,6 @@
 import Control.Monad.Writer.Lazy
+import Data.List
+import Data.Ord
 
 fib :: Int -> Double
 fib n = fromIntegral $ round $ phi ** fromIntegral n / sq5
@@ -8,6 +10,17 @@ fib n = fromIntegral $ round $ phi ** fromIntegral n / sq5
 
 myFunc :: Double -> Double
 myFunc x = x * x
+
+robinMethod :: (Double -> Double)
+            -> Double -> Double
+            -> Int
+            -> Writer [String] Double 
+robinMethod f l r n = do
+    mapM (\i -> tell [show i]) xiths
+    return result
+    where
+        xiths = map ((l +) . (/ (fromIntegral n + 1)) . ((r - l) *) . fromIntegral) [1..n]
+        result = minimumBy (comparing f) xiths
 
 dichotomy :: (Double -> Double)   -- f
          -> Double -> Double    -- interval
@@ -73,9 +86,13 @@ main = do
     l <- getLine
     putStrLn "Enter maximal x:"
     r <- getLine
+    let (r_x_min, r_log) = runWriter $ robinMethod myFunc (read l) (read r) 1000
     let (d_x_min, d_log) = runWriter $ dichotomy myFunc (read l) (read r) 0.1 0.01
     let (g_x_min, g_log) = runWriter $ goldenRatio myFunc (read l) (read r) 0.1
     let (f_x_min, f_log) = runWriter $ fibonacci myFunc (read l) (read r) 1000 0.1
+    putStrLn "robin"
+    putStrLn $ "r_x_min = "  ++ show r_x_min
+    mapM_ (putStrLn . show) $ zip [1..] r_log
     putStrLn "dichotomy"
     putStrLn $ "d_x_min = "  ++ show d_x_min
     mapM_ (putStrLn . show) $ zip [1..] d_log
