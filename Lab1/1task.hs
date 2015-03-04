@@ -78,8 +78,18 @@ fibonacci' f l r x1 x2 y1 y2 n eps k = do
     tell (["l = " ++ show l ++ "; r = " ++ show r])
     if (n == 1 ||  (r - l) < eps) then return $ min x1 x2
              else 
-                if y1 > y2 then let l' = x1; x1' = x2; x2' = l + fib (n - k -1) / fib (n - k) * (r - l); y1' = y2; y2' = f x2' in fibonacci' f l' r x1' x2' y1' y2' (n - 1) eps k
-                           else let r' = x2; x2' = x1; x1' = l + fib (n - k - 2) / fib (n - k) * (r - l); y2' = y1; y1' = f x2' in fibonacci' f l r' x1' x2' y1' y2' (n - 1) eps k
+                if y1 > y2 then let l' = x1
+                                    x1' = x2
+                                    x2' = l' + fib (n - k -1) / fib (n - k) * (r - l')
+                                    y1' = y2
+                                    y2' = f x2'
+                                in fibonacci' f l' r x1' x2' y1' y2' (n - 1) eps k
+                           else let r' = x2
+                                    x2' = x1
+                                    x1' = l + fib (n - k - 2) / fib (n - k) * (r' - l)
+                                    y2' = y1
+                                    y1' = f x1'
+                                in fibonacci' f l r' x1' x2' y1' y2' (n - 1) eps k
  
 main = do
     putStrLn "Enter minimal x:"
