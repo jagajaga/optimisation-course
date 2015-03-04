@@ -14,20 +14,17 @@ myFunc x = abs $ x ** 3 - 30
 robinMethod :: (Double -> Double)
             -> Double -> Double
             -> Int
-            -> Writer [String] Double 
-robinMethod f l r n = do
-    mapM (\i -> tell [show i]) xiths
-    return result
+            -> Double
+robinMethod f l r n = minimumBy (comparing f) xiths
     where
         xiths = map ((l +) . (/ (fromIntegral n + 1)) . ((r - l) *) . fromIntegral) [1..n]
-        result = minimumBy (comparing f) xiths
 
 dichotomy :: (Double -> Double)   -- f
          -> Double -> Double    -- interval
          -> Double              -- eps
          -> Writer [String] Double
 dichotomy f l r eps = do
-    tell (["l = " ++ show l ++ "; r = " ++ show r])
+    tell ([show l ++ "," ++ show r])
     if r - l < eps then return $ (l + r) / 2
                    else
                        if f1 < f2 then dichotomy f l x2 eps else dichotomy f x1 r eps
@@ -42,7 +39,7 @@ goldenRatio :: (Double -> Double)   -- f
          -> Double             -- eps
          -> Writer [String] Double
 goldenRatio f l r eps = do
-    tell (["l = " ++ show l ++ "; r = " ++ show r])
+    tell ([show l ++ "," ++ show r])
     if r - l < eps then return $ (l + r) / 2
                    else
                        if f1 < f2 then goldenRatio f l x2 eps else goldenRatio f x1 r eps
@@ -75,7 +72,7 @@ fibonacci' :: (Double -> Double)
            -> Int
            -> Writer [String] Double
 fibonacci' f l r x1 x2 y1 y2 n eps k = do
-    tell (["l = " ++ show l ++ "; r = " ++ show r])
+    tell ([show l ++ "," ++ show r])
     if (n == 1 ||  (r - l) < eps) then return $ min x1 x2
              else 
                 if y1 > y2 then let l' = x1
@@ -100,20 +97,19 @@ main = do
     n <- getLine
     putStrLn "Enter eps for dichotomy and golden ratio:"
     eps <- getLine
-    let (r_x_min, r_log) = runWriter $ robinMethod myFunc (read l) (read r) (read n)
+    let r_x_min = robinMethod myFunc (read l) (read r) (read n)
     let (d_x_min, d_log) = runWriter $ dichotomy myFunc (read l) (read r) (read eps)
     let (g_x_min, g_log) = runWriter $ goldenRatio myFunc (read l) (read r) (read eps)
     let (f_x_min, f_log) = runWriter $ fibonacci myFunc (read l) (read r) (read n) (read eps)
     putStrLn "robin"
     putStrLn $ "r_x_min = "  ++ show r_x_min
-    mapM_ (putStrLn . show) $ zip [1..] r_log
     putStrLn "dichotomy"
     putStrLn $ "d_x_min = "  ++ show d_x_min
-    mapM_ (putStrLn . show) $ zip [1..] d_log
+    mapM_ (putStrLn . \(i, msg) -> show i ++ "," ++ msg) $ zip [1..] d_log
     putStrLn "\ngolden ratio"
     putStrLn $ "g_x_min = "  ++ show g_x_min
-    mapM_ (putStrLn . show) $ zip [1..] g_log
+    mapM_ (putStrLn . \(i, msg) -> show i ++ "," ++ msg) $ zip [1..] g_log
     putStrLn "\nfibonacci"
     putStrLn $ "f_x_min = "  ++ show f_x_min
-    mapM_ (putStrLn . show) $ zip [1..] f_log
+    mapM_ (putStrLn . \(i, msg) -> show i ++ "," ++ msg) $ zip [1..] f_log
 
