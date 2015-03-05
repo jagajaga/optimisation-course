@@ -1,6 +1,6 @@
 import           Control.Monad.Writer.Lazy
-import           Data.List
-import           Data.Ord
+import           Data.List (minimumBy, intersperse)
+import           Data.Ord (comparing)
 
 fib :: Int -> Double
 fib n = fromIntegral $ round $ phi ** fromIntegral n / sq5
@@ -108,9 +108,15 @@ runMethod :: ((String -- function name
             -> IO ()
 runMethod ((name, f), (l, r, eps, n)) = do
     putStrLn name
-    let (x_min, log) = runWriter $ f myFunc l r eps n
+    let (x_min, r_log) = runWriter $ f myFunc l r eps n
     putStrLn $ "x_min = " ++ show x_min
-    if not $ null log then mapM_ (putStrLn . \(i, msg) -> show i ++ "," ++ msg) $ zip [1..] log
+    if head name /= 'r' 
+       then let plot = concat $ intersperse "\r\n" $ map ( show . \eps -> (\(_, log) -> (eps, if head name == 'd' then length log * 2 else length log + 1)) 
+                    $ (runWriter $ f myFunc l r (2 ** (- log eps)) n)) [1.0..50.0]
+            in
+            writeFile name plot
+       else return ()
+    if not $ null r_log then mapM_ (putStrLn . \(i, msg) -> show i ++ "," ++ msg) $ zip [1..] r_log
                     else return ()
 
 main = do
