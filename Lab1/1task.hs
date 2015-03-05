@@ -80,13 +80,13 @@ fibonacci' f l r x1 x2 y1 y2 n eps k = do
                                     x2' = l' + fib (n - k -1) / fib (n - k) * (r - l')
                                     y1' = y2
                                     y2' = f x2'
-                                in fibonacci' f l' r x1' x2' y1' y2' (n - 1) eps k
+                                in fibonacci' f l' r x1' x2' y1' y2' (n - 1) eps (k + 1)
                            else let r' = x2
                                     x2' = x1
                                     x1' = l + fib (n - k - 2) / fib (n - k) * (r' - l)
                                     y2' = y1
                                     y1' = f x1'
-                                in fibonacci' f l r' x1' x2' y1' y2' (n - 1) eps k
+                                in fibonacci' f l r' x1' x2' y1' y2' (n - 1) eps (k + 1)
  
 main = do
     putStrLn "Enter minimal x:"
