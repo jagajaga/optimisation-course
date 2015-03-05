@@ -82,7 +82,6 @@ def piyavskii(lipschitz_function, eps):
     a = lipschitz_function.a
     b = lipschitz_function.b
     x_min = random.uniform(a, b)
-    x_min = (a + b) / 2
     p = PiecewiseLinearFunction(GFunction(lipschitz_function, x_min))
     args_for_plot = [i / 100. for i in range(int(a) * 100, int(b) * 100)]
     while True:
@@ -96,6 +95,7 @@ def piyavskii(lipschitz_function, eps):
     print('Running time = {} sec'.format(timeit.default_timer() - start))
 
     plt.plot(args_for_plot, [p(x, True) for x in args_for_plot])
+    plt.plot(args_for_plot, [lipschitz_function(x, True) for x in args_for_plot])
     plt.show()
 
 
