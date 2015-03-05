@@ -1,6 +1,6 @@
-import Control.Monad.Writer.Lazy
-import Data.List
-import Data.Ord
+import           Control.Monad.Writer.Lazy
+import           Data.List
+import           Data.Ord
 
 fib :: Int -> Double
 fib n = fromIntegral $ round $ phi ** fromIntegral n / sq5
@@ -11,23 +11,30 @@ fib n = fromIntegral $ round $ phi ** fromIntegral n / sq5
 myFunc :: Double -> Double
 myFunc x = abs $ x ** 3 - 30
 
+tellLog :: Double -> Double -> Writer [String] ()
+tellLog l r =
+    tell ([show l ++ "," ++ show r])
+
 robinMethod :: (Double -> Double)
             -> Double -> Double
-            -> Int
             -> Double
-robinMethod f l r n = minimumBy (comparing f) xiths
+            -> Int
+            -> Writer [String] Double
+robinMethod f l r eps n = do
+    return $ minimumBy (comparing f) xiths
     where
         xiths = map ((l +) . (/ (fromIntegral n + 1)) . ((r - l) *) . fromIntegral) [1..n]
 
 dichotomy :: (Double -> Double)   -- f
          -> Double -> Double    -- interval
          -> Double              -- eps
+         -> Int
          -> Writer [String] Double
-dichotomy f l r eps = do
-    tell ([show l ++ "," ++ show r])
+dichotomy f l r eps n = do
+    tellLog l r
     if r - l < eps then return $ (l + r) / 2
                    else
-                       if f1 < f2 then dichotomy f l x2 eps else dichotomy f x1 r eps
+                       if f1 < f2 then dichotomy f l x2 eps n else dichotomy f x1 r eps n
                        where beta = (r - l) / 10
                              x1 = (l + r - beta) / 2
                              x2 = (l + r + beta) / 2
@@ -37,24 +44,25 @@ dichotomy f l r eps = do
 goldenRatio :: (Double -> Double)   -- f
          -> Double -> Double    -- interval
          -> Double             -- eps
+         -> Int
          -> Writer [String] Double
-goldenRatio f l r eps = do
-    tell ([show l ++ "," ++ show r])
+goldenRatio f l r eps n = do
+    tellLog l r
     if r - l < eps then return $ (l + r) / 2
                    else
-                       if f1 < f2 then goldenRatio f l x2 eps else goldenRatio f x1 r eps
-                       where x1 = l + (3 - sqrt 5) * (r - l) / 2 
-                             x2 = l + (sqrt 5 - 1) * (r - l) / 2 
+                       if f1 < f2 then goldenRatio f l x2 eps n else goldenRatio f x1 r eps n
+                       where x1 = l + (3 - sqrt 5) * (r - l) / 2
+                             x2 = l + (sqrt 5 - 1) * (r - l) / 2
                              f1 = f x1
                              f2 = f x2
 
 fibonacci :: (Double -> Double)   -- f
          -> Double -> Double    -- interval
-         -> Int             -- steps
          -> Double
+         -> Int             -- steps
          -> Writer [String] Double
-fibonacci f l r n eps = do
-    fibonacci' f l r x1 x2 y1 y2 (n - 1) eps 1
+fibonacci f l r eps n = do
+    fibonacci' f l r x1 x2 y1 y2 (n - 1) eps 0
     where
         x1 = l + (r - l) * fib (n - 2) / fib n
         x2 = l + (r - l) * fib (n - 1) / fib n
@@ -64,7 +72,7 @@ fibonacci f l r n eps = do
 fibonacci' :: (Double -> Double)
            -> Double -> Double
            -> Double
-           -> Double 
+           -> Double
            -> Double
            -> Double
            -> Int
@@ -72,9 +80,9 @@ fibonacci' :: (Double -> Double)
            -> Int
            -> Writer [String] Double
 fibonacci' f l r x1 x2 y1 y2 n eps k = do
-    tell ([show l ++ "," ++ show r])
+    tellLog l r
     if (n == 1 ||  (r - l) < eps) then return $ min x1 x2
-             else 
+             else
                 if y1 > y2 then let l' = x1
                                     x1' = x2
                                     x2' = l' + fib (n - k -1) / fib (n - k) * (r - l')
@@ -87,29 +95,26 @@ fibonacci' f l r x1 x2 y1 y2 n eps k = do
                                     y2' = y1
                                     y1' = f x1'
                                 in fibonacci' f l r' x1' x2' y1' y2' (n - 1) eps (k + 1)
- 
+
+runMethod :: ((String -- function name
+            , (Double -> Double) -> Double -> Double -> Double -> Int -> Writer [String] Double) -- function
+            , (Double, Double, Double, Int)) -- l, r, eps, n
+            -> IO ()
+runMethod ((name, f), (l, r, eps, n)) = do
+    putStrLn name
+    let (x_min, log) = runWriter $ f myFunc l r eps n
+    putStrLn $ "x_min = " ++ show x_min
+    if not $ null log then mapM_ (putStrLn . \(i, msg) -> show i ++ "," ++ msg) $ zip [1..] log
+                    else return ()
+
 main = do
     putStrLn "Enter minimal x:"
-    l <- getLine
+    l <- getLine >>= return . read
     putStrLn "Enter maximal x:"
-    r <- getLine
+    r <- getLine >>= return . read
     putStrLn "Enter iterations count for robin method and fibonacci method:"
-    n <- getLine
+    n <- getLine >>= return . read
     putStrLn "Enter eps for dichotomy and golden ratio:"
-    eps <- getLine
-    let r_x_min = robinMethod myFunc (read l) (read r) (read n)
-    let (d_x_min, d_log) = runWriter $ dichotomy myFunc (read l) (read r) (read eps)
-    let (g_x_min, g_log) = runWriter $ goldenRatio myFunc (read l) (read r) (read eps)
-    let (f_x_min, f_log) = runWriter $ fibonacci myFunc (read l) (read r) (read n) (read eps)
-    putStrLn "robin"
-    putStrLn $ "r_x_min = "  ++ show r_x_min
-    putStrLn "dichotomy"
-    putStrLn $ "d_x_min = "  ++ show d_x_min
-    mapM_ (putStrLn . \(i, msg) -> show i ++ "," ++ msg) $ zip [1..] d_log
-    putStrLn "\ngolden ratio"
-    putStrLn $ "g_x_min = "  ++ show g_x_min
-    mapM_ (putStrLn . \(i, msg) -> show i ++ "," ++ msg) $ zip [1..] g_log
-    putStrLn "\nfibonacci"
-    putStrLn $ "f_x_min = "  ++ show f_x_min
-    mapM_ (putStrLn . \(i, msg) -> show i ++ "," ++ msg) $ zip [1..] f_log
+    eps <- getLine >>= return . read
+    mapM_ runMethod $ zip [("robin", robinMethod), ("dichotomy", dichotomy), ("golden ratio", goldenRatio), ("fibonacci", fibonacci)] (cycle [(l, r, eps, n)])
 
