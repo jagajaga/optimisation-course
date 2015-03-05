@@ -68,7 +68,7 @@ fibonacci :: (Double -> Double)   -- f
          -> Int             -- steps
          -> Writer [String] Double
 fibonacci f l r eps n = do
-    fibonacci' f l r x1 x2 y1 y2 (n - 1) eps 0
+    fibonacci' f l r x1 x2 y1 y2 (n - 1) eps 1
     where
         x1 = l + (r - l) * fib (n - 2) / fib n
         x2 = l + (r - l) * fib (n - 1) / fib n
@@ -87,20 +87,20 @@ fibonacci' :: (Double -> Double)
            -> Writer [String] Double
 fibonacci' f l r x1 x2 y1 y2 n eps k = do
     tellLog l r
-    if (n == 1 ||  (r - l) < eps) then return $ min x1 x2
+    if (k == n ||  (r - l) < eps) then return $ min x1 x2
              else
                 if y1 > y2 then let l' = x1
                                     x1' = x2
-                                    x2' = l' + fib (n - k -1) / fib (n - k) * (r - l')
+                                    x2' = l' + fib (n - k - 1) / fib (n - k) * (r - l')
                                     y1' = y2
                                     y2' = f x2'
-                                in fibonacci' f l' r x1' x2' y1' y2' (n - 1) eps (k + 1)
+                                in fibonacci' f l' r x1' x2' y1' y2' n eps (k + 1)
                            else let r' = x2
                                     x2' = x1
                                     x1' = l + fib (n - k - 2) / fib (n - k) * (r' - l)
                                     y2' = y1
                                     y1' = f x1'
-                                in fibonacci' f l r' x1' x2' y1' y2' (n - 1) eps (k + 1)
+                                in fibonacci' f l r' x1' x2' y1' y2' n eps (k + 1)
 
 runMethod :: ((String -- function name
             , (Double -> Double) -> Double -> Double -> Double -> Int -> Writer [String] Double) -- function
