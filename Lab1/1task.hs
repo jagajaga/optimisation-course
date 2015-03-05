@@ -25,18 +25,24 @@ robinMethod f l r eps n = do
     where
         xiths = map ((l +) . (/ (fromIntegral n + 1)) . ((r - l) *) . fromIntegral) [1..n]
 
-dichotomy :: (Double -> Double)   -- f
-         -> Double -> Double    -- interval
-         -> Double              -- eps
-         -> Int
-         -> Writer [String] Double
-dichotomy f l r eps n = do
+dichotomy :: (Double -> Double) -- f
+          -> Double -> Double    -- interval
+          -> Double              -- eps
+          -> Int                 -- dummy
+          -> Writer [String] Double
+dichotomy f l r eps _ = dichotomy' f l r eps (eps / 2)
+
+dichotomy' :: (Double -> Double) -- f
+          -> Double -> Double    -- interval
+          -> Double              -- eps
+          -> Double              -- beta
+          -> Writer [String] Double
+dichotomy' f l r eps beta = do
     tellLog l r
     if r - l < eps then return $ (l + r) / 2
                    else
-                       if f1 < f2 then dichotomy f l x2 eps n else dichotomy f x1 r eps n
-                       where beta = (r - l) / 10
-                             x1 = (l + r - beta) / 2
+                       if f1 < f2 then dichotomy' f l x2 eps beta else dichotomy' f x1 r eps beta
+                       where x1 = (l + r - beta) / 2
                              x2 = (l + r + beta) / 2
                              f1 = f x1
                              f2 = f x2
