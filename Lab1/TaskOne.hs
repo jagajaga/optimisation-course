@@ -1,3 +1,4 @@
+module Lab1.TaskOne where
 import           Control.Monad.Writer.Lazy
 import           Data.List (minimumBy, intersperse)
 import           Data.Ord (comparing)

@@ -1,5 +1,6 @@
-import Control.Monad.Writer.Lazy
-import Data.List
+import           Control.Monad.Writer.Lazy
+import           Data.List
+import           Lab1.TaskOne              (goldenRatio)
 
 type Point2 = (Double, Double)
 
@@ -36,20 +37,6 @@ norm (x, y) = sqrt $ x ** 2 + y ** 2
 normalized :: Point2 -> Point2
 normalized p = p *. (1 / norm p)
 
-goldenRatio :: (Double -> Double)   -- f
-         -> Double -> Double        -- interval
-         -> Double                  -- eps
-         -> Int
-         -> Writer [String] Double
-goldenRatio f l r eps n = do
-    if r - l < eps then return $ (l + r) / 2
-                   else
-                       if f1 < f2 then goldenRatio f l x2 eps n else goldenRatio f x1 r eps n
-                       where x1 = l + (3 - sqrt 5) * (r - l) / 2
-                             x2 = l + (sqrt 5 - 1) * (r - l) / 2
-                             f1 = f x1
-                             f2 = f x2
-
 findMaxStep :: Point2 -> Point2 ->  -- bounds
                Point2 ->            -- start
                Point2 ->            -- direction
@@ -75,15 +62,13 @@ gradientMethodConstantStep f g pMin pMax p0 eps step = doMethod p0 (f p0) 1 wher
         let pNext@(x, y) = p +. dir *. step
         let nextValue = f pNext
         let newFCalcCount = fCalcCount + 1
-        let finish res = do
-            tell ["f calcilations count: " ++ show newFCalcCount]
-            return res
-        tell ["p = " ++ show p, 
+        let finish res = do {tell ["f calcilations count: " ++ show newFCalcCount]; return res}
+        tell ["p = " ++ show p,
               "dir = " ++ show dir]
         if step > maxStep then finish p0 else
             if abs (nextValue - prevValue) < eps then finish pNext else
                 doMethod pNext nextValue newFCalcCount
- 
+
 gradientMethodFastest :: (Point2 -> Double) ->      -- function
                          (Point2 -> Point2) ->      -- gradient
                          Point2 ->                  -- min bound
@@ -100,10 +85,8 @@ gradientMethodFastest f g pMin pMax p0 eps _ = doMethod p0 (f p0) 1 where
         let pNext@(x, y) = p +. dir *. step
         let nextValue = f pNext
         let newFCalcCount = fCalcCount + length findStepLog + 1
-        let finish res = do
-            tell ["f calcilations count: " ++ show newFCalcCount]
-            return res
-        tell ["p = " ++ show p, 
+        let finish res = do {tell ["f calcilations count: " ++ show newFCalcCount]; return res}
+        tell ["p = " ++ show p,
               "dir = " ++ show dir]
         if step == 0 then finish p else
             if abs (nextValue - prevValue) < eps then finish pNext else
