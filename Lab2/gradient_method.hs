@@ -14,6 +14,9 @@ minPoint = (0, 0)
 maxPoint :: Point2
 maxPoint = (1, 1)
 
+startPoint :: Point2
+startPoint = (0.2, 0.8)
+
 infixl 5 +.
 (+.) :: Point2 -> Point2 -> Point2
 (x, y) +. (x1, y1) = (x + x1, y + y1)
@@ -46,6 +49,14 @@ goldenRatio f l r eps n = do
                              f1 = f x1
                              f2 = f x2
 
+findMaxStep :: Point2 -> Point2 ->  -- bounds
+               Point2 ->            -- start
+               Point2 ->            -- direction
+               Double
+findMaxStep (xMin, yMin) (xMax, yMax) (x, y) (xDir, yDir) =
+    if xDir == 0 then maxByY else if yDir == 0 then maxByX else min maxByX maxByY
+    where maxByX = if xDir > 0 then (xMax - x) / xDir else (xMin - x) / xDir
+          maxByY = if yDir > 0 then (yMax - y) / yDir else (yMin - y) / yDir
 
 gradientMethodConstantStep :: (Point2 -> Double) ->     -- function
                               (Point2 -> Point2) ->     -- gradient
@@ -55,42 +66,25 @@ gradientMethodConstantStep :: (Point2 -> Double) ->     -- function
                               Double ->                 -- epsilon
                               Double ->                 -- step
                               Writer [String] Point2    -- result (min point)
-gradientMethodConstantStep f g pMin@(xMin, yMin) pMax@(xMax, yMax) p0 eps step = do
+gradientMethodConstantStep f g pMin pMax p0 eps step = do
     let dir = normalized (g p0 *. (-1))
     let p@(x, y) = p0 +. dir *. step
+    let maxStep = findMaxStep pMin pMax p0 dir
     tell ["p0 = " ++ show p0, 
           "dir = " ++ show dir]
-    if x < xMin || x > xMax || y < yMin || y > yMax then return p0 else
+    if step > maxStep then return p0 else
         if abs (f p0 - f p) < eps then return p else
             gradientMethodConstantStep f g pMin pMax p eps step
           
-findMaxStep :: Point2 -> Point2 ->  -- bounds
-               Point2 ->            -- start
-               Point2 ->            -- direction
-               Double
-findMaxStep (xMin, yMin) (xMax, yMax) (x, y) (xDir, yDir) = 
-    case xDir `compare` 0 of
-         LT -> let maxByX = (xMin - x) / xDir in case yDir `compare` 0 of
-                                                      LT -> let maxByY = (yMin - y) / yDir in min maxByX maxByY
-                                                      EQ -> maxByX
-                                                      GT -> let maxByY = (yMax - y) / yDir in min maxByX maxByY
-         EQ -> case yDir `compare` 0 of
-                    LT -> let maxByY = (yMin - y) / yDir in maxByY
-                    EQ -> error "dir == 0, wtf?"
-                    GT -> let maxByY = (yMax - y) / yDir in maxByY
-         GT -> let maxByX = (xMax - x) / xDir in case yDir `compare` 0 of
-                                                      LT -> let maxByY = (yMin - y) / yDir in min maxByX maxByY
-                                                      EQ -> maxByX
-                                                      GT -> let maxByY = (yMax - y) / yDir in min maxByX maxByY
-
-gradientMethodFastest :: (Point2 -> Double) ->     -- function
-                         (Point2 -> Point2) ->     -- gradient
-                         Point2 ->                 -- min bound
-                         Point2 ->                 -- max bound
-                         Point2 ->                 -- start point
-                         Double ->                 -- epsilon
-                         Writer [String] Point2    -- result (min point)
-gradientMethodFastest f g pMin@(xMin, yMin) pMax@(xMax, yMax) p0 eps = do
+gradientMethodFastest :: (Point2 -> Double) ->      -- function
+                         (Point2 -> Point2) ->      -- gradient
+                         Point2 ->                  -- min bound
+                         Point2 ->                  -- max bound
+                         Point2 ->                  -- start point
+                         Double ->                  -- epsilon
+                         Double ->                  -- dummy argument
+                         Writer [String] Point2     -- result (min point)
+gradientMethodFastest f g pMin pMax p0 eps _ = do
     let dir = normalized (g p0 *. (-1))
     let maxStep = findMaxStep pMin pMax p0 dir
     let (step, findStepLog) = runWriter $ goldenRatio (\step -> f $ p0 +. dir *. step) 0 maxStep eps undefined
@@ -99,19 +93,25 @@ gradientMethodFastest f g pMin@(xMin, yMin) pMax@(xMax, yMax) p0 eps = do
           "dir = " ++ show dir]
     if step == 0 then return p0 else
         if abs (f p0 - f p) < eps then return p else
-            gradientMethodFastest f g pMin pMax p eps
+            gradientMethodFastest f g pMin pMax p eps undefined
+
+type MethodType = (Point2 -> Double) -> (Point2 -> Point2) -> Point2 -> Point2 -> Point2 -> Double -> Double -> Writer [String] Point2
+runMethod :: String ->      -- method name
+             MethodType ->  -- method
+             String ->      -- eps
+             String ->      -- step (where needed)
+             IO ()
+runMethod name method eps step = do
+    putStrLn $ "Running " ++ name
+    let (minP, messages) = runWriter $ method f gradF minPoint maxPoint startPoint (read eps) (read step)
+    mapM_ putStrLn messages
+    putStrLn $ "Result of " ++ name ++ ": " ++ show minP
 
 main = do
     putStrLn "Enter epsilon:"
     eps <- getLine
     putStrLn "Enter value of the step for the first method:"
     step <- getLine
-    putStrLn "Running gradient method with constant step"
-    let (minP1, log1) = runWriter $ gradientMethodConstantStep f gradF minPoint maxPoint (0.2, 0.8) (read eps) (read step)
-    mapM_ putStrLn log1
-    putStrLn $ "Result of gradient method with constant step: " ++ show minP1
-    putStrLn $ "Running gradient method with the fastest descent"
-    let (minP2, log2) = runWriter $ gradientMethodFastest f gradF minPoint maxPoint (0.2, 0.8) (read eps)
-    mapM_ putStrLn log2
-    putStrLn $ "Result of gradient method with the fastest descent: " ++ show minP2
+    runMethod "gradient method with constant step" gradientMethodConstantStep eps step
+    runMethod "gradient method with the fastest descent" gradientMethodFastest eps step
 
