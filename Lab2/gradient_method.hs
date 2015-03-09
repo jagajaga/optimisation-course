@@ -1,4 +1,5 @@
 import Control.Monad.Writer.Lazy
+import Data.List
 
 type Point2 = (Double, Double)
 
@@ -58,6 +59,7 @@ findMaxStep (xMin, yMin) (xMax, yMax) (x, y) (xDir, yDir) =
     where maxByX = if xDir > 0 then (xMax - x) / xDir else (xMin - x) / xDir
           maxByY = if yDir > 0 then (yMax - y) / yDir else (yMin - y) / yDir
 
+-- TODO: write generic gradient method
 gradientMethodConstantStep :: (Point2 -> Double) ->     -- function
                               (Point2 -> Point2) ->     -- gradient
                               Point2 ->                 -- min bound
@@ -66,16 +68,22 @@ gradientMethodConstantStep :: (Point2 -> Double) ->     -- function
                               Double ->                 -- epsilon
                               Double ->                 -- step
                               Writer [String] Point2    -- result (min point)
-gradientMethodConstantStep f g pMin pMax p0 eps step = do
-    let dir = normalized (g p0 *. (-1))
-    let p@(x, y) = p0 +. dir *. step
-    let maxStep = findMaxStep pMin pMax p0 dir
-    tell ["p0 = " ++ show p0, 
-          "dir = " ++ show dir]
-    if step > maxStep then return p0 else
-        if abs (f p0 - f p) < eps then return p else
-            gradientMethodConstantStep f g pMin pMax p eps step
-          
+gradientMethodConstantStep f g pMin pMax p0 eps step = doMethod p0 (f p0) 1 where
+    doMethod p prevValue fCalcCount = do
+        let dir = normalized (g p *. (-1))
+        let maxStep = findMaxStep pMin pMax p dir
+        let pNext@(x, y) = p +. dir *. step
+        let nextValue = f pNext
+        let newFCalcCount = fCalcCount + 1
+        let finish res = do
+            tell ["f calcilations count: " ++ show newFCalcCount]
+            return res
+        tell ["p = " ++ show p, 
+              "dir = " ++ show dir]
+        if step > maxStep then finish p0 else
+            if abs (nextValue - prevValue) < eps then finish pNext else
+                doMethod pNext nextValue newFCalcCount
+ 
 gradientMethodFastest :: (Point2 -> Double) ->      -- function
                          (Point2 -> Point2) ->      -- gradient
                          Point2 ->                  -- min bound
@@ -84,16 +92,22 @@ gradientMethodFastest :: (Point2 -> Double) ->      -- function
                          Double ->                  -- epsilon
                          Double ->                  -- dummy argument
                          Writer [String] Point2     -- result (min point)
-gradientMethodFastest f g pMin pMax p0 eps _ = do
-    let dir = normalized (g p0 *. (-1))
-    let maxStep = findMaxStep pMin pMax p0 dir
-    let (step, findStepLog) = runWriter $ goldenRatio (\step -> f $ p0 +. dir *. step) 0 maxStep eps undefined
-    let p@(x, y) = p0 +. dir *. step
-    tell ["p0 = " ++ show p0, 
-          "dir = " ++ show dir]
-    if step == 0 then return p0 else
-        if abs (f p0 - f p) < eps then return p else
-            gradientMethodFastest f g pMin pMax p eps undefined
+gradientMethodFastest f g pMin pMax p0 eps _ = doMethod p0 (f p0) 1 where
+    doMethod p prevValue fCalcCount = do
+        let dir = normalized (g p *. (-1))
+        let maxStep = findMaxStep pMin pMax p0 dir
+        let (step, findStepLog) = runWriter $ goldenRatio (\step -> f $ p +. dir *. step) 0 maxStep eps undefined
+        let pNext@(x, y) = p +. dir *. step
+        let nextValue = f pNext
+        let newFCalcCount = fCalcCount + length findStepLog + 1
+        let finish res = do
+            tell ["f calcilations count: " ++ show newFCalcCount]
+            return res
+        tell ["p = " ++ show p, 
+              "dir = " ++ show dir]
+        if step == 0 then finish p else
+            if abs (nextValue - prevValue) < eps then finish pNext else
+                doMethod pNext nextValue newFCalcCount
 
 type MethodType = (Point2 -> Double) -> (Point2 -> Point2) -> Point2 -> Point2 -> Point2 -> Double -> Double -> Writer [String] Point2
 runMethod :: String ->      -- method name
@@ -105,6 +119,7 @@ runMethod name method eps step = do
     putStrLn $ "Running " ++ name
     let (minP, messages) = runWriter $ method f gradF minPoint maxPoint startPoint (read eps) (read step)
     mapM_ putStrLn messages
+    putStrLn $ "gradient calculations count: " ++ show (length $ filter (isPrefixOf "dir") messages)
     putStrLn $ "Result of " ++ name ++ ": " ++ show minP
 
 main = do
