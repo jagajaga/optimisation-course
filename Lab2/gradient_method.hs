@@ -1,9 +1,14 @@
 import           Control.Monad.Writer.Lazy
 import           Data.List
 import           Lab1.TaskOne              (goldenRatio)
+
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Backend.Cairo
 import Graphics.Rendering.Chart.Plot.Contour
+
+import Control.Lens
+import Control.Applicative
+import Data.Default.Class
 
 type Point2 = (Double, Double)
 
@@ -108,11 +113,39 @@ runMethod name method eps step = do
     putStrLn $ "gradient calculations count: " ++ show (length $ filter (isPrefixOf "dir") messages)
     putStrLn $ "Result of " ++ name ++ ": " ++ show minP
 
+{-main = do-}
+    {-putStrLn "Enter epsilon:"-}
+    {-eps <- getLine-}
+    {-putStrLn "Enter value of the step for the first method:"-}
+    {-step <- getLine-}
+    {-runMethod "gradient method with constant step" gradientMethodConstantStep eps step-}
+    {-runMethod "gradient method with the fastest descent" gradientMethodFastest eps step-}
+
+{---- Test ----}
+
+
+am :: Double -> Double
+am x = (sin (x*3.14159/45) + 1) / 2 * (sin (x*3.14159/5))
+
+sinusoid2 = plot_points_values .~ [ (x,(am x)) | x <- [0,7..20]]
+            $ plot_points_title .~ "am points"
+            $ def
+
+main :: IO ()
 main = do
-    putStrLn "Enter epsilon:"
-    eps <- getLine
-    putStrLn "Enter value of the step for the first method:"
-    step <- getLine
-    runMethod "gradient method with constant step" gradientMethodConstantStep eps step
-    runMethod "gradient method with the fastest descent" gradientMethodFastest eps step
+    let f' x y = f(x,y) 
+        sz = 7.5
+        stp = 1000
+        rng = (-sz,sz)
+        stps = (stp,stp)
+        n = 20
+        plts = contourPlot rng rng stp stp n f'
+        stls = solidLine 3 <$> rgbaGradient (0,0,1,1) (1,0,0,1) n
+        plts' = zipWith (plot_lines_style .~) stls plts
+        lyt = toRenderable
+            $ layout_title .~ "Contours of a 2D Sin Curve"
+            $ layout_plots .~ (map toPlot plts') ++ [toPlot sinusoid2]
+            $ def
+    renderableToFile (FileOptions (1000,700) PNG) "sind2d.png" lyt
+    return ()
 
