@@ -1,6 +1,9 @@
 import           Control.Monad.Writer.Lazy
 import           Data.List
 import           Lab1.TaskOne              (goldenRatio)
+import Graphics.Rendering.Chart
+import Graphics.Rendering.Chart.Backend.Cairo
+import Graphics.Rendering.Chart.Plot.Contour
 
 type Point2 = (Double, Double)
 
