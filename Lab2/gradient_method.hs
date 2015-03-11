@@ -106,6 +106,14 @@ gradientMethodFastest f g pMin pMax p0 eps _ = doMethod p0 (f p0) 1 where
             if abs (nextValue - prevValue) < eps then finish pNext else
                 doMethod pNext nextValue newFCalcCount
 
+
+boundPoints :: [Point2] -> (Point2, Point2)
+boundPoints ps =
+  let
+    xs = map fst ps
+    ys = map snd ps
+  in ((minimum xs, minimum ys), (maximum xs, maximum ys))
+
 type MethodType = (Point2 -> Double) -> (Point2 -> Point2) -> Point2 -> Point2 -> Point2 -> Double -> Double -> Writer [Result] Point2
 runMethod :: String ->      -- method name
              MethodType ->  -- method
@@ -122,22 +130,24 @@ runMethod name method eps step = do
         minimisationLines = plot_lines_values .~ lines --TODO better name?
                     $ plot_lines_style  . line_color .~ opaque blue
                     $ def
+        minimisationDots = plot_points_style .~ filledCircles 4 (opaque red)
+                        $ plot_points_values .~ (nub . concat) lines
+                        $ def
     mapM_ (\(a,b) -> putStrLn $ "p = " ++ show a ++ "\ndir = " ++ show b) $ zip ps dirs
     putStrLn $ head $ ["f calculations count: " ++ show x | FCount x <- messages]
     putStrLn $ "gradient calculations count: " ++ (show $ length dirs)
     putStrLn $ "Result of " ++ name ++ ": " ++ show minP
-    let sz = fst maxPoint
+    let box@(a,b) = boundPoints (ps ++ pnexts)
         stp = 1000
-        rng = (-sz, sz)
-        n = 40 -- TODO What to put here? That's isolines number
-        plts = contourPlot rng rng stp stp n (curry f)
+        n = 20 -- TODO What to put here? That's isolines number
+        plts = contourPlot a b stp stp n (curry f)
         stls = solidLine 3 <$> rgbaGradient (0,0,1,1) (1,0,0,1) n
         plts' = zipWith (plot_lines_style .~) stls plts
         lyt = toRenderable
             $ layout_title .~ "Contours of a " ++ name
-            $ layout_plots .~ (map toPlot plts') ++ [toPlot minimisationLines]
+            $ layout_plots .~ (map toPlot plts') ++ [toPlot minimisationLines, toPlot minimisationDots]
             $ def
-    renderableToFile (FileOptions (stp,stp) PNG) (name ++ ".png") lyt
+    renderableToFile (FileOptions (stp,stp) SVG) (name ++ ".svg") lyt
     return ()
 
 main = do
