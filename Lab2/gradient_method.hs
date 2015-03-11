@@ -123,7 +123,7 @@ runMethod name method eps step = do
                     $ plot_lines_style  . line_color .~ opaque blue
                     $ def
     mapM_ (\(a,b) -> putStrLn $ "p = " ++ show a ++ "\ndir = " ++ show b) $ zip ps dirs
-    putStrLn $ head $ ["f calcilations count: " ++ show x | FCount x <- messages]
+    putStrLn $ head $ ["f calculations count: " ++ show x | FCount x <- messages]
     putStrLn $ "gradient calculations count: " ++ (show $ length dirs)
     putStrLn $ "Result of " ++ name ++ ": " ++ show minP
     let sz = fst maxPoint
