@@ -1,5 +1,5 @@
-{ mkDerivation, base, Chart, Chart-cairo, data-default-class, lens
-, mtl, stdenv
+{ mkDerivation, base, Chart, Chart-cairo, colour
+, data-default-class, lens, mtl, stdenv
 }:
 mkDerivation {
   pname = "optimisation-course";
@@ -8,7 +8,7 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   buildDepends = [
-    base Chart Chart-cairo data-default-class lens mtl
+    base Chart Chart-cairo colour data-default-class lens mtl
   ];
   license = stdenv.lib.licenses.unfree;
 }

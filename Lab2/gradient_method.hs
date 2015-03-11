@@ -1,16 +1,24 @@
 import           Control.Monad.Writer.Lazy
 import           Data.List
-import           Lab1.TaskOne              (goldenRatio)
+import           Lab1.TaskOne                           (goldenRatio)
 
-import Graphics.Rendering.Chart
-import Graphics.Rendering.Chart.Backend.Cairo
-import Graphics.Rendering.Chart.Plot.Contour
+import           Graphics.Rendering.Chart
+import           Graphics.Rendering.Chart.Backend.Cairo
+import           Graphics.Rendering.Chart.Plot.Contour
 
-import Control.Lens
-import Control.Applicative
-import Data.Default.Class
+import           Control.Applicative
+import           Control.Lens
+import           Data.Default.Class
+
+import           Data.Colour
+import           Data.Colour.Names
 
 type Point2 = (Double, Double)
+
+data Result = P Point2
+            | PNext Point2
+            | Dir Point2
+            | FCount Int
 
 f :: Point2 -> Double
 f (x, y) = x ** 4 + y ** 4 - 5 * (x * y - x ** 2 * y **2)
@@ -62,7 +70,7 @@ gradientMethodConstantStep :: (Point2 -> Double) ->     -- function
                               Point2 ->                 -- start point
                               Double ->                 -- epsilon
                               Double ->                 -- step
-                              Writer [String] Point2    -- result (min point)
+                              Writer [Result] Point2    -- result (min point)
 gradientMethodConstantStep f g pMin pMax p0 eps step = doMethod p0 (f p0) 1 where
     doMethod p prevValue fCalcCount = do
         let dir = normalized (g p *. (-1))
@@ -70,9 +78,8 @@ gradientMethodConstantStep f g pMin pMax p0 eps step = doMethod p0 (f p0) 1 wher
         let pNext@(x, y) = p +. dir *. step
         let nextValue = f pNext
         let newFCalcCount = fCalcCount + 1
-        let finish res = do {tell ["f calcilations count: " ++ show newFCalcCount]; return res}
-        tell ["p = " ++ show p,
-              "dir = " ++ show dir]
+        let finish res = do {tell [FCount newFCalcCount]; return res}
+        tell [P p, Dir dir, PNext pNext]
         if step > maxStep then finish p0 else
             if abs (nextValue - prevValue) < eps then finish pNext else
                 doMethod pNext nextValue newFCalcCount
@@ -84,7 +91,7 @@ gradientMethodFastest :: (Point2 -> Double) ->      -- function
                          Point2 ->                  -- start point
                          Double ->                  -- epsilon
                          Double ->                  -- dummy argument
-                         Writer [String] Point2     -- result (min point)
+                         Writer [Result] Point2     -- result (min point)
 gradientMethodFastest f g pMin pMax p0 eps _ = doMethod p0 (f p0) 1 where
     doMethod p prevValue fCalcCount = do
         let dir = normalized (g p *. (-1))
@@ -93,14 +100,13 @@ gradientMethodFastest f g pMin pMax p0 eps _ = doMethod p0 (f p0) 1 where
         let pNext@(x, y) = p +. dir *. step
         let nextValue = f pNext
         let newFCalcCount = fCalcCount + length findStepLog + 1
-        let finish res = do {tell ["f calcilations count: " ++ show newFCalcCount]; return res}
-        tell ["p = " ++ show p,
-              "dir = " ++ show dir]
+        let finish res = do {tell [FCount newFCalcCount]; return res}
+        tell [P p, Dir dir, PNext pNext]
         if step == 0 then finish p else
             if abs (nextValue - prevValue) < eps then finish pNext else
                 doMethod pNext nextValue newFCalcCount
 
-type MethodType = (Point2 -> Double) -> (Point2 -> Point2) -> Point2 -> Point2 -> Point2 -> Double -> Double -> Writer [String] Point2
+type MethodType = (Point2 -> Double) -> (Point2 -> Point2) -> Point2 -> Point2 -> Point2 -> Double -> Double -> Writer [Result] Point2
 runMethod :: String ->      -- method name
              MethodType ->  -- method
              String ->      -- eps
@@ -109,43 +115,35 @@ runMethod :: String ->      -- method name
 runMethod name method eps step = do
     putStrLn $ "Running " ++ name
     let (minP, messages) = runWriter $ method f gradF minPoint maxPoint startPoint (read eps) (read step)
-    mapM_ putStrLn messages
-    putStrLn $ "gradient calculations count: " ++ show (length $ filter (isPrefixOf "dir") messages)
+        ps = [a | P a <- messages]
+        dirs = [b | Dir b <- messages]
+        pnexts = [c | PNext c <- messages]
+        lines = zipWith (\a b -> [a,b]) ps pnexts
+        minimisationLines = plot_lines_values .~ lines --TODO better name?
+                    $ plot_lines_style  . line_color .~ opaque blue
+                    $ def
+    mapM_ (\(a,b) -> putStrLn $ "p = " ++ show a ++ "\ndir = " ++ show b) $ zip ps dirs
+    putStrLn $ head $ ["f calcilations count: " ++ show x | FCount x <- messages]
+    putStrLn $ "gradient calculations count: " ++ (show $ length dirs)
     putStrLn $ "Result of " ++ name ++ ": " ++ show minP
-
-{-main = do-}
-    {-putStrLn "Enter epsilon:"-}
-    {-eps <- getLine-}
-    {-putStrLn "Enter value of the step for the first method:"-}
-    {-step <- getLine-}
-    {-runMethod "gradient method with constant step" gradientMethodConstantStep eps step-}
-    {-runMethod "gradient method with the fastest descent" gradientMethodFastest eps step-}
-
-{---- Test ----}
-
-
-am :: Double -> Double
-am x = (sin (x*3.14159/45) + 1) / 2 * (sin (x*3.14159/5))
-
-sinusoid2 = plot_points_values .~ [ (x,(am x)) | x <- [0,7..20]]
-            $ plot_points_title .~ "am points"
-            $ def
-
-main :: IO ()
-main = do
-    let f' x y = f(x,y) 
-        sz = 7.5
+    let sz = fst maxPoint
         stp = 1000
-        rng = (-sz,sz)
-        stps = (stp,stp)
-        n = 20
-        plts = contourPlot rng rng stp stp n f'
+        rng = (-sz, sz)
+        n = 40 -- TODO What to put here? That's isolines number
+        plts = contourPlot rng rng stp stp n (curry f)
         stls = solidLine 3 <$> rgbaGradient (0,0,1,1) (1,0,0,1) n
         plts' = zipWith (plot_lines_style .~) stls plts
         lyt = toRenderable
-            $ layout_title .~ "Contours of a 2D Sin Curve"
-            $ layout_plots .~ (map toPlot plts') ++ [toPlot sinusoid2]
+            $ layout_title .~ "Contours of a " ++ name
+            $ layout_plots .~ (map toPlot plts') ++ [toPlot minimisationLines]
             $ def
-    renderableToFile (FileOptions (1000,700) PNG) "sind2d.png" lyt
+    renderableToFile (FileOptions (stp,stp) PNG) (name ++ ".png") lyt
     return ()
 
+main = do
+    putStrLn "Enter epsilon:"
+    eps <- getLine
+    putStrLn "Enter value of the step for the first method:"
+    step <- getLine
+    runMethod "gradient method with constant step" gradientMethodConstantStep eps step
+    runMethod "gradient method with the fastest descent" gradientMethodFastest eps step
