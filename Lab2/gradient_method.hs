@@ -62,7 +62,33 @@ findMaxStep (xMin, yMin) (xMax, yMax) (x, y) (xDir, yDir) =
     where maxByX = if xDir > 0 then (xMax - x) / xDir else (xMin - x) / xDir
           maxByY = if yDir > 0 then (yMax - y) / yDir else (yMin - y) / yDir
 
--- TODO: write generic gradient method
+newtype StepCalculator = StepCalculator { runStepCalculator :: Point2 ->        -- from
+                                                               Point2 ->        -- dir
+                                                               Double ->        -- max step
+                                                               (Double, Int)    -- step, f calculations count
+                                        }
+genericGradientMethod :: (Point2 -> Double) ->     -- function
+                         (Point2 -> Point2) ->     -- gradient
+                         Point2 ->                 -- min bound
+                         Point2 ->                 -- max bound
+                         Point2 ->                 -- start point
+                         Double ->                 -- epsilon
+                         StepCalculator ->         -- step
+                         Writer [Result] Point2    -- result (min point)
+genericGradientMethod f g pMin pMax p0 eps stepCalculator = doMethod p0 (f p0) 1 where
+    doMethod p prevValue fCalcCount = do
+        let dir = normalized (g p *. (-1))
+        let maxStep = findMaxStep pMin pMax p dir
+        let (step, fCalcCountForStep) = runStepCalculator stepCalculator p dir maxStep
+        let pNext@(x, y) = p +. dir *. step
+        let nextValue = f pNext
+        let newFCalcCount = fCalcCount + 1 + fCalcCountForStep
+        let finish res = tell [FCount newFCalcCount] >> return res
+        tell [P p, Dir dir, PNext pNext]
+        if step > maxStep || step == 0 then finish p0 else
+            if abs (nextValue - prevValue) < eps then finish pNext else
+                doMethod pNext nextValue newFCalcCount
+
 gradientMethodConstantStep :: (Point2 -> Double) ->     -- function
                               (Point2 -> Point2) ->     -- gradient
                               Point2 ->                 -- min bound
@@ -71,18 +97,7 @@ gradientMethodConstantStep :: (Point2 -> Double) ->     -- function
                               Double ->                 -- epsilon
                               Double ->                 -- step
                               Writer [Result] Point2    -- result (min point)
-gradientMethodConstantStep f g pMin pMax p0 eps step = doMethod p0 (f p0) 1 where
-    doMethod p prevValue fCalcCount = do
-        let dir = normalized (g p *. (-1))
-        let maxStep = findMaxStep pMin pMax p dir
-        let pNext@(x, y) = p +. dir *. step
-        let nextValue = f pNext
-        let newFCalcCount = fCalcCount + 1
-        let finish res = do {tell [FCount newFCalcCount]; return res}
-        tell [P p, Dir dir, PNext pNext]
-        if step > maxStep then finish p0 else
-            if abs (nextValue - prevValue) < eps then finish pNext else
-                doMethod pNext nextValue newFCalcCount
+gradientMethodConstantStep f g pMin pMax p0 eps step = genericGradientMethod f g pMin pMax p0 eps $ StepCalculator (\ _ _ _ -> (step, 0))
 
 gradientMethodFastest :: (Point2 -> Double) ->      -- function
                          (Point2 -> Point2) ->      -- gradient
@@ -92,20 +107,8 @@ gradientMethodFastest :: (Point2 -> Double) ->      -- function
                          Double ->                  -- epsilon
                          Double ->                  -- dummy argument
                          Writer [Result] Point2     -- result (min point)
-gradientMethodFastest f g pMin pMax p0 eps _ = doMethod p0 (f p0) 1 where
-    doMethod p prevValue fCalcCount = do
-        let dir = normalized (g p *. (-1))
-        let maxStep = findMaxStep pMin pMax p0 dir
-        let (step, findStepLog) = runWriter $ goldenRatio (\step -> f $ p +. dir *. step) 0 maxStep eps undefined
-        let pNext@(x, y) = p +. dir *. step
-        let nextValue = f pNext
-        let newFCalcCount = fCalcCount + length findStepLog + 1
-        let finish res = do {tell [FCount newFCalcCount]; return res}
-        tell [P p, Dir dir, PNext pNext]
-        if step == 0 then finish p else
-            if abs (nextValue - prevValue) < eps then finish pNext else
-                doMethod pNext nextValue newFCalcCount
-
+gradientMethodFastest f g pMin pMax p0 eps _ = genericGradientMethod f g pMin pMax p0 eps $ StepCalculator findStep where
+    findStep p dir maxStep = let (step, findStepLog) = runWriter $ goldenRatio (\step -> f $ p +. dir *. step) 0 maxStep eps undefined in (step, length findStepLog + 1)
 
 boundPoints :: [Point2] -> (Point2, Point2)
 boundPoints ps =
