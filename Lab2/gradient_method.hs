@@ -21,19 +21,20 @@ data Result = P Point2
             | FCount Int
 
 f :: Point2 -> Double
-f (x, y) = x ** 4 + y ** 4 - 5 * (x * y - x ** 2 * y **2)
+f (x, y) = x ** 2 + y ** 2 - 3 * (x + y)
 
 gradF :: Point2 -> Point2
-gradF (x, y) = (4 * x ** 3 - 5 * y + 10 * x * y ** 2, 4 * y ** 3 - 5 * x + 10 * x ** 2 * y)
+gradF (x, y) = (2 * x - 3,
+                2 * y - 3)
 
 minPoint :: Point2
 minPoint = (0, 0)
 
 maxPoint :: Point2
-maxPoint = (1, 1)
+maxPoint = (2, 4)
 
 startPoint :: Point2
-startPoint = (0.2, 0.8)
+startPoint = (0.25, 0.9)
 
 infixl 5 +.
 (+.) :: Point2 -> Point2 -> Point2
