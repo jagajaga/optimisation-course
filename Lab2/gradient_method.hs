@@ -141,9 +141,9 @@ runMethod name method eps step = do
     putStrLn $ head $ ["f calculations count: " ++ show x | FCount x <- messages]
     putStrLn $ "gradient calculations count: " ++ (show $ length dirs)
     putStrLn $ "Result of " ++ name ++ ": " ++ show minP
-    let box@(a,b) = boundPoints (ps ++ pnexts)
+    let (a,b) = (\((aa,ab), (ba, bb)) -> ((aa - 0.5, ba + 0.5), (ab - 0.5, bb + 0.5))) $ boundPoints (ps ++ pnexts)
         stp = 1000
-        n = 20 -- TODO What to put here? That's isolines number
+        n = 10 -- TODO What to put here? That's isolines number
         plts = contourPlot a b stp stp n (curry f)
         stls = solidLine 3 <$> rgbaGradient (0,0,1,1) (1,0,0,1) n
         plts' = zipWith (plot_lines_style .~) stls plts
