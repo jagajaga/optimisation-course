@@ -53,7 +53,7 @@ namespace transportation
          if (rhs.size1() != m || rhs.size2() != 1)
             BOOST_THROW_EXCEPTION(std::runtime_error("Invalid rhs size"));
 
-         matrix_t inverse(m, n);
+         matrix_t inverse(n, m);
          invert_matrix(matrix, inverse);
          matrix_t product(n, 1);
          boost::numeric::ublas::axpy_prod(inverse, rhs, product);
@@ -73,6 +73,31 @@ namespace transportation
          return res;
       }
 
+      std::vector<std::vector<size_t>> generated_ordered_combinations(size_t n, size_t k)
+      {
+         std::vector<std::vector<size_t>> result;
+         std::function<void(std::vector<size_t>)> generate = [&](std::vector<size_t> v)
+         {
+            if (v.size() == k)
+            {
+               result.push_back(std::move(v));
+               return;
+            }
+            for (size_t i = 0; i != n; ++i)
+            {
+               if (std::find(v.begin(), v.end(), i) != v.end())
+                  continue;
+
+               std::vector<size_t> new_v = v;
+               new_v.push_back(i);
+               generate(std::move(new_v));
+            }
+         };
+
+         generate({});
+         return result;
+      }
+
       std::vector<solver_t::point_t> find_angle_points(matrix_t const & matrix, matrix_t const & rhs)
       {
          size_t m = matrix.size1(),
@@ -83,7 +108,28 @@ namespace transportation
          // HACK
          size_t rank = m - 1; // I hope it's always true in our case, but I'm not sure :(
 
-         return {};
+         std::vector<solver_t::point_t> result;
+         for (std::vector<size_t> subset : generated_ordered_combinations(n, rank))
+         {
+            assert(subset.size() == rank);
+            matrix_t equations(m, rank);
+            for (size_t i = 0; i != m; ++i)
+            {
+               for (size_t j = 0; j != rank; ++j)
+               {
+                  equations(i, j) = matrix(i, subset[j]);
+               }
+            }
+            std::vector<double> solution = solve_linear_system(equations, rhs);
+            std::vector<double> angle_point(n, 0);
+            for (size_t i = 0; i != subset.size(); ++i)
+            {
+               angle_point[subset[i]] = solution[i];
+            }
+            result.push_back(std::move(angle_point));
+         }
+
+         return result;
       }
    }
 
@@ -151,7 +197,7 @@ namespace transportation
             }
             rhs(i, 0) = supply_[i];
          }
-         for (size_t j = 0; j != m; ++j)
+         for (size_t j = 0; j != n; ++j)
          {
             for (size_t k = 0; k != m * n; ++k)
             {
@@ -282,12 +328,12 @@ namespace transportation
           {
               for (int j = 0; j < result[i].size(); j++)
               {
-                auto f = [i, j](int a, int b) 
+                auto f = [i, j](int a, int b)
                     {
                         return (i == j) ? a - b : a + b;
                     };
                 result[i][j] = f(result[i][j], theta);
-                if (result[i][j] > 0) 
+                if (result[i][j] > 0)
                 {
                     coordinates_t to_add(i,j);
                     not_null.push_back(to_add);
