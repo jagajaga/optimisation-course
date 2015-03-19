@@ -54,16 +54,12 @@ namespace transportation
             BOOST_THROW_EXCEPTION(std::runtime_error("Invalid rhs size"));
 
          matrix_t inverse(n, m);
-         invert_matrix(matrix, inverse);
+         if (!invert_matrix(matrix, inverse))
+            return {};
+
          matrix_t product(n, 1);
          boost::numeric::ublas::axpy_prod(inverse, rhs, product);
          std::vector<double> res;
-
-//         std::clog << "Matrix: " << matrix << std::endl
-//                   << "Rhs: " << rhs << std::endl
-//                   << "Inverse: " << inverse << std::endl
-//                   << "Product: " << product << std::endl
-//                   ;
 
          for (size_t i = 0; i != n; ++i)
          {
@@ -112,15 +108,27 @@ namespace transportation
          for (std::vector<size_t> subset : generated_ordered_combinations(n, rank))
          {
             assert(subset.size() == rank);
-            matrix_t equations(m, rank);
-            for (size_t i = 0; i != m; ++i)
+            matrix_t equations(rank, rank);
+            for (size_t i = 0; i != rank; ++i)
             {
                for (size_t j = 0; j != rank; ++j)
                {
                   equations(i, j) = matrix(i, subset[j]);
                }
             }
-            std::vector<double> solution = solve_linear_system(equations, rhs);
+            matrix_t new_rhs(rank, 1);
+            for (size_t i = 0; i != rank; ++i)
+               new_rhs(i, 0) = rhs(i, 0);
+
+            std::vector<double> solution = solve_linear_system(equations, new_rhs);
+            if (solution.empty())
+               continue;
+
+            std::clog << "Equations: " << equations << std::endl
+                      << "new_rhs: " << new_rhs << std::endl
+                      ;
+            boost::copy(solution, std::ostream_iterator<double>(std::clog, " "));
+            std::clog << std::endl;
             std::vector<double> angle_point(n, 0);
             for (size_t i = 0; i != subset.size(); ++i)
             {
@@ -205,9 +213,6 @@ namespace transportation
             }
             rhs(j + m, 0) = consume_[j];
          }
-//         std::clog << "Equations: " << equations << std::endl
-//                   << "Rhs: " << rhs << std::endl
-//                   ;
 
          return find_angle_points(equations, rhs);
       }
