@@ -2,6 +2,9 @@
 
 #include <iostream>
 #include <fstream>
+#include <iterator>
+
+#include <boost/range/algorithm/copy.hpp>
 
 int main(int argc, char ** argv)
 {
@@ -23,5 +26,13 @@ int main(int argc, char ** argv)
    transportation_solver.solve();
    transportation::print_result(transportation_solver, std::cout);
 
-   return 0;
+   auto angle_points = transportation_solver.angle_points();
+   std::cout << "Angle points count = " << angle_points.size() << std::endl;
+   for (transportation::solver_t::point_t const & angle_point : angle_points)
+   {
+      boost::copy(angle_point, std::ostream_iterator<double>(std::cout, " "));
+      std::cout << std::endl;
+   }
+
+   return EXIT_SUCCESS;
 }

@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <memory>
+#include <vector>
 
 namespace transportation
 {
@@ -17,6 +18,9 @@ namespace transportation
       double get_value(size_t i, size_t j) const;
 
       size_t iterations_count() const;
+
+      typedef std::vector<double> point_t;
+      std::vector<point_t> angle_points();
 
    private:
       struct implementation_t;

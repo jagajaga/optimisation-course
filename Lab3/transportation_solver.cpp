@@ -75,6 +75,19 @@ namespace transportation
 
          return res;
       }
+
+      std::vector<solver_t::point_t> find_angle_points(matrix_t const & matrix, matrix_t const & rhs)
+      {
+         size_t m = matrix.size1(),
+                n = matrix.size2();
+         if (rhs.size1() != n || rhs.size2() != 1)
+            BOOST_THROW_EXCEPTION(std::runtime_error("Invalid rhs size"));
+
+         // HACK
+         size_t rank = m - 1; // I hope it's always true in our case, but I'm not sure :(
+
+         return {};
+      }
    }
 
    struct solver_t::implementation_t
@@ -125,6 +138,35 @@ namespace transportation
          }
 
          solved = true;
+      }
+
+      std::vector<point_t> angle_points()
+      {
+         size_t m = suppliers_count,
+                n = consumers_count;
+         matrix_t equations(m + n, m * n);
+         matrix_t rhs(m + n, 1);
+         for (size_t i = 0; i != m; ++i)
+         {
+            for (size_t k = 0; k != m * n; ++k)
+            {
+               equations(i, k) = (k / n == i) ? 1 : 0;
+            }
+            rhs(i, 0) = supply_[i];
+         }
+         for (size_t j = 0; j != m; ++j)
+         {
+            for (size_t k = 0; k != m * n; ++k)
+            {
+               equations(j + m, k) = (k % n == j) ? 1 : 0;
+            }
+            rhs(j + m, 0) = consume_[j];
+         }
+//         std::clog << "Equations: " << equations << std::endl
+//                   << "Rhs: " << rhs << std::endl
+//                   ;
+
+         return find_angle_points(equations, rhs);
       }
 
    private:
@@ -286,6 +328,11 @@ namespace transportation
       }
 
       return pimpl_->iterations_count;
+   }
+
+   std::vector<solver_t::point_t> solver_t::angle_points()
+   {
+      return pimpl_->angle_points();
    }
 
    void print_result(solver_t const & solver, std::ostream & out)
