@@ -16,6 +16,8 @@ namespace transportation
       void solve();
       double get_value(size_t i, size_t j) const;
 
+      size_t iterations_count() const;
+
    private:
       struct implementation_t;
       std::unique_ptr<implementation_t> pimpl_;

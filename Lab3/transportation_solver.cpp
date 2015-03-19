@@ -86,8 +86,11 @@ namespace transportation
 
       bool solved;
 
+      size_t iterations_count;
+
       implementation_t(std::istream & in)
          : solved(false)
+         , iterations_count(0)
       {
          in >> suppliers_count >> consumers_count;
          supply_.resize(suppliers_count);
@@ -114,8 +117,10 @@ namespace transportation
       void solve()
       {
          find_initial_plan();
+         ++iterations_count;
          while (auto bad_coordinates = find_negative_delta())
          {
+            ++iterations_count;
             improve_plan(*bad_coordinates);
          }
 
@@ -273,6 +278,16 @@ namespace transportation
       return pimpl_->result[i][j];
    }
 
+   size_t solver_t::iterations_count() const
+   {
+      if (!pimpl_->solved)
+      {
+         BOOST_THROW_EXCEPTION(std::runtime_error("Not solved"));
+      }
+
+      return pimpl_->iterations_count;
+   }
+
    void print_result(solver_t const & solver, std::ostream & out)
    {
       for (size_t i = 0; i != solver.suppliers_count(); ++i)
@@ -284,6 +299,7 @@ namespace transportation
          }
          out << std::endl;
       }
+      out << "Iterations count: " << solver.iterations_count() << std::endl;
    }
 
 }
