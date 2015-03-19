@@ -274,7 +274,27 @@ namespace transportation
 
       void improve_plan(coordinates_t const & to_increase)
       {
-         // TODO
+          std::cout << result[to_increase.first][to_increase.second];
+          double theta = std::min(result[0][0], result[1][1]);
+          std::cerr << theta;
+          std::vector<coordinates_t> not_null;
+          for (int i = 0; i < result.size(); i++)
+          {
+              for (int j = 0; j < result[i].size(); j++)
+              {
+                auto f = [i, j](int a, int b) 
+                    {
+                        return (i == j) ? a - b : a + b;
+                    };
+                result[i][j] = f(result[i][j], theta);
+                if (result[i][j] > 0) 
+                {
+                    coordinates_t to_add(i,j);
+                    not_null.push_back(to_add);
+                }
+              }
+          }
+          find_potentials(not_null);
       }
 
    private:
