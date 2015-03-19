@@ -50,10 +50,7 @@ namespace transportation
       {
          size_t m = matrix.size1(),
                 n = matrix.size2();
-         if (m != n)
-            BOOST_THROW_EXCEPTION(std::runtime_error("Not squared matrix"));
-
-         if (rhs.size1() != n || rhs.size2() != 1)
+         if (rhs.size1() != m || rhs.size2() != 1)
             BOOST_THROW_EXCEPTION(std::runtime_error("Invalid rhs size"));
 
          matrix_t inverse(m, n);
@@ -80,7 +77,7 @@ namespace transportation
       {
          size_t m = matrix.size1(),
                 n = matrix.size2();
-         if (rhs.size1() != n || rhs.size2() != 1)
+         if (rhs.size1() != m || rhs.size2() != 1)
             BOOST_THROW_EXCEPTION(std::runtime_error("Invalid rhs size"));
 
          // HACK
