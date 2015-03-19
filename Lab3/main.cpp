@@ -21,15 +21,7 @@ int main(int argc, char ** argv)
 
    transportation::solver_t transportation_solver(in);
    transportation_solver.solve();
-   for (size_t i = 0; i != transportation_solver.suppliers_count(); ++i)
-   {
-      std::cout << "Suppliers #" << i << " gives: " << std::endl;
-      for (size_t j = 0; j != transportation_solver.consumers_count(); ++j)
-      {
-         std::cout << transportation_solver.get_value(i, j) << " ";
-      }
-      std::cout << std::endl;
-   }
+   transportation::print_result(transportation_solver, std::cout);
 
    return 0;
 }

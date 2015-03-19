@@ -20,4 +20,6 @@ namespace transportation
       struct implementation_t;
       std::unique_ptr<implementation_t> pimpl_;
    };
+
+   void print_result(solver_t const &, std::ostream &);
 }
