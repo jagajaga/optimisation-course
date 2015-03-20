@@ -372,23 +372,23 @@ namespace transportation
 
          std::vector<std::vector<mark_t>> pre_calc(suppliers_count, std::vector<mark_t>(consumers_count, UNKNOWN));
 
-         pre_calc[to_increase.second][to_increase.first] = START;
+         pre_calc[to_increase.first][to_increase.second] = START;
          std::deque<coordinates_t> to_change;
          std::function<bool(std::vector<std::vector<mark_t>> const &, coordinates_t const &, direction)> build_cycle =
             [&](std::vector<std::vector<mark_t>> const & A, coordinates_t const & cur, direction dir)
          {
-            size_t m = consumers_count,
-                   n = suppliers_count;
+            size_t m = suppliers_count,
+                   n = consumers_count;
             if (dir == VERT || dir == ANY)
             {
-               for (size_t i = 0; i != m; ++i)
+               for (size_t j = 0; j != n; ++j)
                {
-                  if (A[i][cur.first] == UNKNOWN) // try
+                  if (A[cur.first][j] == UNKNOWN) // try
                   {
                      auto B = A;
-                     B[i][cur.first] = A[cur.second][cur.first] == MINUS ? PLUS : MINUS;
-                     coordinates_t newPoint(cur.first, i);
-                     bool flag = build_cycle(B, newPoint, HOR);
+                     B[cur.first][j] = A[cur.first][cur.second] == MINUS ? PLUS : MINUS;
+                     coordinates_t new_point(cur.first, j);
+                     bool flag = build_cycle(B, new_point, HOR);
 
                      if (flag)
                      {
@@ -396,7 +396,7 @@ namespace transportation
                         return true;
                      }
                   }
-                  else if (dir != ANY && A[i][cur.first] == START) // found cycle!
+                  else if (dir != ANY && A[cur.first][j] == START) // found cycle!
                   {
                      to_change.push_front(cur);
                      return true;
@@ -406,14 +406,14 @@ namespace transportation
 
             if (dir == HOR || dir == ANY)
             {
-               for (size_t i = 0; i != n; ++i)
+               for (size_t i = 0; i != m; ++i)
                {
-                  if (A[cur.second][i] == UNKNOWN) // try
+                  if (A[i][cur.second] == UNKNOWN) // try
                   {
                      auto B = A;
-                     B[cur.second][i] = A[cur.second][cur.first] == MINUS ? PLUS : MINUS;
-                     coordinates_t newPoint(i, cur.second);
-                     bool flag = build_cycle(B, newPoint, VERT);
+                     B[i][cur.second] = A[cur.first][cur.second] == MINUS ? PLUS : MINUS;
+                     coordinates_t new_point(i, cur.second);
+                     bool flag = build_cycle(B, new_point, VERT);
 
                      if (flag)
                      {
@@ -421,7 +421,7 @@ namespace transportation
                         return true;
                      }
                   }
-                  else if (dir != ANY && A[cur.second][i] == START) // found cycle!
+                  else if (dir != ANY && A[i][cur.second] == START) // found cycle!
                   {
                      to_change.push_front(cur);
                      return true;
