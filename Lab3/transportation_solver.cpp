@@ -434,6 +434,8 @@ namespace transportation
 
          build_cycle(pre_calc, to_increase, ANY);
 
+         assert(to_change.size() % 2 == 0);
+
          double theta = std::numeric_limits<double>::max();
 
          for (size_t i = 1; i < to_change.size(); i += 2)
