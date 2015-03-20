@@ -5,6 +5,7 @@
 #include <cassert>
 #include <iterator>
 #include <deque>
+#include <functional>
 
 #include <boost/range/algorithm/copy.hpp>
 #include <boost/throw_exception.hpp>
@@ -243,7 +244,8 @@ namespace transportation
          std::vector<coordinates_t> visited;
          auto find_element = [this](coordinates_t coords)
          {
-            size_t i = coords.first, j = coords.second;
+            size_t i = coords.first,
+                   j = coords.second;
             double can_supply = supply_[i];
 
             for (size_t k = 0; k != consumers_count; ++k)
@@ -281,10 +283,10 @@ namespace transportation
          find_potentials(visited);
       }
 
-      void find_potentials(std::vector<coordinates_t> const& coordinates)
+      void find_potentials(std::vector<coordinates_t> const & coordinates)
       {
          size_t m = suppliers_count,
-               n = consumers_count;
+                n = consumers_count;
          assert(coordinates.size() == m + n - 1);
          matrix_t equations(m + n, m + n);
          matrix_t rhs(m + n, 1);
@@ -360,48 +362,99 @@ namespace transportation
 
       void improve_plan(coordinates_t const& to_increase)
       {
-         std::vector<std::vector<char> > pre_calc(
-            result.size(), std::vector<char>(result[0].size())
-         );
-
-         for (int i = 0; i < result.size(); i++)
+         enum mark_t
          {
-            for (int j = 0; j < result[i].size(); j++)
-            {
-               pre_calc[i][j] = '?';
-            }
-         }
+            START,
+            PLUS,
+            MINUS,
+            UNKNOWN,
+         };
 
-         pre_calc[to_increase.second][to_increase.first] = 'S';
+         std::vector<std::vector<mark_t>> pre_calc(suppliers_count, std::vector<mark_t>(consumers_count, UNKNOWN));
+
+         pre_calc[to_increase.second][to_increase.first] = START;
          std::deque<coordinates_t> to_change;
+         std::function<bool(std::vector<std::vector<mark_t>> const &, coordinates_t const &, direction)> build_cycle =
+            [&](std::vector<std::vector<mark_t>> const & A, coordinates_t const & cur, direction dir)
+         {
+            size_t m = consumers_count,
+                   n = suppliers_count;
+            if (dir == VERT || dir == ANY)
+            {
+               for (size_t i = 0; i != m; ++i)
+               {
+                  if (A[i][cur.first] == UNKNOWN) // try
+                  {
+                     auto B = A;
+                     B[i][cur.first] = A[cur.second][cur.first] == MINUS ? PLUS : MINUS;
+                     coordinates_t newPoint(cur.first, i);
+                     bool flag = build_cycle(B, newPoint, HOR);
+
+                     if (flag)
+                     {
+                        to_change.push_front(cur);
+                        return true;
+                     }
+                  }
+                  else if (dir != ANY && A[i][cur.first] == START) // found cycle!
+                  {
+                     to_change.push_front(cur);
+                     return true;
+                  }
+               }
+            }
+
+            if (dir == HOR || dir == ANY)
+            {
+               for (size_t i = 0; i != n; ++i)
+               {
+                  if (A[cur.second][i] == UNKNOWN) // try
+                  {
+                     auto B = A;
+                     B[cur.second][i] = A[cur.second][cur.first] == MINUS ? PLUS : MINUS;
+                     coordinates_t newPoint(i, cur.second);
+                     bool flag = build_cycle(B, newPoint, VERT);
+
+                     if (flag)
+                     {
+                        to_change.push_front(cur);
+                        return true;
+                     }
+                  }
+                  else if (dir != ANY && A[cur.second][i] == START) // found cycle!
+                  {
+                     to_change.push_front(cur);
+                     return true;
+                  }
+               }
+            }
+
+            return false;
+         };
+
+         build_cycle(pre_calc, to_increase, ANY);
+
+         double theta = std::numeric_limits<double>::max();
+
+         for (size_t i = 1; i < to_change.size(); i += 2)
+         {
+            size_t x = to_change[i].first;
+            size_t y = to_change[i].second;
+            if (result[x][y] < theta)
+               theta = result[x][y];
+         }
+
+         for (size_t i = 0; i != to_change.size(); ++i)
+         {
+            size_t x = to_change[i].first;
+            size_t y = to_change[i].second;
+            result[x][y] += i % 2 ? -theta : theta;
+         }
+
          std::vector<coordinates_t> not_null;
-         _buildCycle(pre_calc, to_increase, result.size(), result[0].size(), ANY, to_change);
-
-         double theta = 9999999999;
-
-         for (int i = 0; i < to_change.size(); i++)
+         for (size_t i = 0; i != suppliers_count; ++i)
          {
-            if (i % 2)
-            {
-               theta = result[to_change[i].first][to_change[i].second] < theta ? result[to_change[i].first][to_change[i].second] : theta;
-            }
-         }
-
-         for (int i = 0; i < to_change.size(); i++)
-         {
-            if (i % 2)
-            {
-               result[to_change[i].first][to_change[i].second] = result[to_change[i].first][to_change[i].second] - theta;
-            }
-            else
-            {
-               result[to_change[i].first][to_change[i].second] = theta + result[to_change[i].first][to_change[i].second];
-            }
-         }
-
-         for (int i = 0; i < result.size(); i++)
-         {
-            for (int j = 0; j < result[i].size(); j++)
+            for (size_t j = 0; j != consumers_count; ++j)
             {
                if (result[i][j] > 0)
                {
@@ -412,61 +465,6 @@ namespace transportation
          }
 
          find_potentials(not_null);
-      }
-
-      bool _buildCycle(std::vector<std::vector<char> > A, coordinates_t curPoint, int m, int n, direction dir, std::deque<coordinates_t>& q)
-      {
-         if (dir == VERT || dir == ANY)
-         {
-            for (int i = 0; i < m; i++)
-            {
-               if (A[i][curPoint.first] == '?') // try
-               {
-                  std::vector<std::vector<char> > B = A;
-                  A[curPoint.second][curPoint.first] == '-' ? B[i][curPoint.first] = '+' :  B[i][curPoint.first] = '-';
-                  coordinates_t newPoint(curPoint.first, i);
-                  bool flag = _buildCycle(B, newPoint, m, n, HOR, q);
-
-                  if (flag)
-                  {
-                     q.push_front(curPoint);
-                     return true;
-                  }
-               }
-               else if (dir != ANY && A[i][curPoint.first] == 'S') // found cycle!
-               {
-                  q.push_front(curPoint);
-                  return true;
-               }
-            }
-         }
-
-         if (dir == HOR || dir == ANY)
-         {
-            for (int i = 0; i < n; i++)
-            {
-               if (A[curPoint.second][i] == '?') // try
-               {
-                  std::vector<std::vector<char> > B = A;
-                  A[curPoint.second][curPoint.second] == '-' ? B[curPoint.second][i] = '+' :  B[curPoint.second][i] = '-';
-                  coordinates_t newPoint(i, curPoint.second);
-                  bool flag = _buildCycle(B, newPoint, m, n, VERT, q);
-
-                  if (flag)
-                  {
-                     q.push_front(curPoint);
-                     return true;
-                  }
-               }
-               else if (dir != ANY && A[curPoint.second][i] == 'S') // found cycle!
-               {
-                  q.push_front(curPoint);
-                  return true;
-               }
-            }
-         }
-
-         return false;
       }
 
    private:
@@ -524,7 +522,7 @@ namespace transportation
       return pimpl_->angle_points();
    }
 
-   void print_result(solver_t const& solver, std::ostream& out)
+   void print_result(solver_t const & solver, std::ostream & out)
    {
       for (size_t i = 0; i != solver.suppliers_count(); ++i)
       {
