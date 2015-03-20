@@ -6,6 +6,7 @@
 #include <iterator>
 #include <deque>
 #include <functional>
+#include <random>
 
 #include <boost/range/algorithm/copy.hpp>
 #include <boost/throw_exception.hpp>
@@ -151,6 +152,14 @@ namespace transportation
 
          return result;
       }
+
+      size_t generate_random(size_t n)
+      {
+          std::uniform_int_distribution<size_t> distr(0, n - 1);
+          std::mt19937 generator;
+          return distr(generator);
+      }
+
    }
 
    struct solver_t::implementation_t
@@ -280,7 +289,24 @@ namespace transportation
             element_coords = find_element(element_coords);
          }
 
-         find_potentials(visited);
+         std::vector<coordinates_t> new_visited, others;
+         for (auto const & v : visited)
+         {
+             if (result[v.first][v.second] > 0)
+                 new_visited.push_back(v);
+             else
+                 others.push_back(v);
+         }
+         
+         while (new_visited.size() < consumers_count + suppliers_count - 1)
+         {
+             size_t idx = generate_random(others.size());
+             std::swap(others[idx], others.back());
+             new_visited.push_back(others.back());
+             others.pop_back();
+         }
+
+         find_potentials(new_visited);
       }
 
       void find_potentials(std::vector<coordinates_t> const & coordinates)
@@ -381,13 +407,14 @@ namespace transportation
                    n = consumers_count;
             if (dir == VERT || dir == ANY)
             {
-               for (size_t j = 0; j != n; ++j)
+               for (size_t i = 0; i != m; ++i)
                {
-                  if (A[cur.first][j] == UNKNOWN) // try
+//                  if (result[i][cur.second] == 0) continue;
+                  if (A[i][cur.second] == UNKNOWN) // try
                   {
                      auto B = A;
-                     B[cur.first][j] = A[cur.first][cur.second] == MINUS ? PLUS : MINUS;
-                     coordinates_t new_point(cur.first, j);
+                     B[i][cur.second] = A[cur.first][cur.second] == MINUS ? PLUS : MINUS;
+                     coordinates_t new_point(i, cur.second);
                      bool flag = build_cycle(B, new_point, HOR);
 
                      if (flag)
@@ -396,7 +423,7 @@ namespace transportation
                         return true;
                      }
                   }
-                  else if (dir != ANY && A[cur.first][j] == START) // found cycle!
+                  else if (dir != ANY && A[i][cur.second] == START && A[cur.first][cur.second] == MINUS) // found cycle!
                   {
                      to_change.push_front(cur);
                      return true;
@@ -406,13 +433,14 @@ namespace transportation
 
             if (dir == HOR || dir == ANY)
             {
-               for (size_t i = 0; i != m; ++i)
+               for (size_t j = 0; j != n; ++j)
                {
-                  if (A[i][cur.second] == UNKNOWN) // try
+//                  if (result[cur.first][j] == 0) continue;
+                  if (A[cur.first][j] == UNKNOWN) // try
                   {
                      auto B = A;
-                     B[i][cur.second] = A[cur.first][cur.second] == MINUS ? PLUS : MINUS;
-                     coordinates_t new_point(i, cur.second);
+                     B[cur.first][j] = A[cur.first][cur.second] == MINUS ? PLUS : MINUS;
+                     coordinates_t new_point(cur.first, j);
                      bool flag = build_cycle(B, new_point, VERT);
 
                      if (flag)
@@ -421,7 +449,7 @@ namespace transportation
                         return true;
                      }
                   }
-                  else if (dir != ANY && A[i][cur.second] == START) // found cycle!
+                  else if (dir != ANY && A[cur.first][j] == START && A[cur.first][cur.second] == MINUS) // found cycle!
                   {
                      to_change.push_front(cur);
                      return true;
@@ -435,6 +463,8 @@ namespace transportation
          build_cycle(pre_calc, to_increase, ANY);
 
          assert(to_change.size() % 2 == 0);
+//         for (auto p : to_change)
+//             std::cout << p.first << "," << p.second << std::endl;
 
          double theta = std::numeric_limits<double>::max();
 
@@ -454,31 +484,30 @@ namespace transportation
          }
 
          std::vector<coordinates_t> coords_for_potentials;
+         std::vector<coordinates_t> others;
          for (size_t i = 0; i != suppliers_count; ++i)
          {
-            for (size_t j = 0; j != consumers_count; ++j)
-            {
-               if (result[i][j] > 0)
-               {
-                  coords_for_potentials.push_back(std::make_pair(i, j));
-               }
-            }
-         }
-         for (size_t i = 0; i != suppliers_count; ++i)
-         {
-            if (coords_for_potentials.size() == suppliers_count + consumers_count - 1)
-               break;
-
             for (size_t j = 0; j != consumers_count; ++j)
             {
                if (coords_for_potentials.size() == suppliers_count + consumers_count - 1)
                   break;
-
-               if (result[i][j] == 0)
+               if (result[i][j] > 0 && coords_for_potentials.size() < suppliers_count + consumers_count - 1)
                {
                   coords_for_potentials.push_back(std::make_pair(i, j));
                }
+               else
+               {
+                   others.push_back(std::make_pair(i, j));
+               }
             }
+         }
+
+         while (coords_for_potentials.size() < consumers_count + suppliers_count - 1)
+         {
+             size_t idx = generate_random(others.size());
+             std::swap(others[idx], others.back());
+             coords_for_potentials.push_back(others.back());
+             others.pop_back();
          }
 
          find_potentials(coords_for_potentials);

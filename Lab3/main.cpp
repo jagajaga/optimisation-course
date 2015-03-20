@@ -30,11 +30,11 @@ int main(int argc, char ** argv)
    auto angle_points = transportation_solver.angle_points();
    std::set<transportation::solver_t::point_t> angle_points_set(angle_points.begin(), angle_points.end());
    std::cout << "Angle points count = " << angle_points_set.size() << std::endl;
-   for (transportation::solver_t::point_t const & angle_point : angle_points_set)
-   {
-      boost::copy(angle_point, std::ostream_iterator<double>(std::cout, " "));
-      std::cout << std::endl;
-   }
+   //for (transportation::solver_t::point_t const & angle_point : angle_points_set)
+   //{
+      //boost::copy(angle_point, std::ostream_iterator<double>(std::cout, " "));
+      //std::cout << std::endl;
+   //}
 
    return EXIT_SUCCESS;
 }
