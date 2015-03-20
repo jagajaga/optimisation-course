@@ -360,7 +360,7 @@ namespace transportation
          return result;
       }
 
-      void improve_plan(coordinates_t const& to_increase)
+      void improve_plan(coordinates_t const & to_increase)
       {
          enum mark_t
          {
@@ -451,20 +451,35 @@ namespace transportation
             result[x][y] += i % 2 ? -theta : theta;
          }
 
-         std::vector<coordinates_t> not_null;
+         std::vector<coordinates_t> coords_for_potentials;
          for (size_t i = 0; i != suppliers_count; ++i)
          {
             for (size_t j = 0; j != consumers_count; ++j)
             {
                if (result[i][j] > 0)
                {
-                  coordinates_t to_add(i,j);
-                  not_null.push_back(to_add);
+                  coords_for_potentials.push_back(std::make_pair(i, j));
+               }
+            }
+         }
+         for (size_t i = 0; i != suppliers_count; ++i)
+         {
+            if (coords_for_potentials.size() == suppliers_count + consumers_count - 1)
+               break;
+
+            for (size_t j = 0; j != consumers_count; ++j)
+            {
+               if (coords_for_potentials.size() == suppliers_count + consumers_count - 1)
+                  break;
+
+               if (result[i][j] == 0)
+               {
+                  coords_for_potentials.push_back(std::make_pair(i, j));
                }
             }
          }
 
-         find_potentials(not_null);
+         find_potentials(coords_for_potentials);
       }
 
    private:
