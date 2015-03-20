@@ -61,17 +61,13 @@ namespace transportation
             BOOST_THROW_EXCEPTION(std::runtime_error("Invalid rhs size"));
          }
 
-         matrix_t inverse(m, n);
-         invert_matrix(matrix, inverse);
+         matrix_t inverse(n, m);
+         if (!invert_matrix(matrix, inverse))
+            return {};
+
          matrix_t product(n, 1);
          boost::numeric::ublas::axpy_prod(inverse, rhs, product);
          std::vector<double> res;
-
-//       std::clog << "Matrix: " << matrix << std::endl
-//               << "Rhs: " << rhs << std::endl
-//               << "Inverse: " << inverse << std::endl
-//               << "Product: " << product << std::endl
-//               ;
 
          for (size_t i = 0; i != n; ++i)
          {
@@ -81,7 +77,32 @@ namespace transportation
          return res;
       }
 
-      std::vector<solver_t::point_t> find_angle_points(matrix_t const& matrix, matrix_t const& rhs)
+      std::vector<std::vector<size_t>> generated_ordered_combinations(size_t n, size_t k)
+      {
+         std::vector<std::vector<size_t>> result;
+         std::function<void(std::vector<size_t>)> generate = [&](std::vector<size_t> v)
+         {
+            if (v.size() == k)
+            {
+               result.push_back(std::move(v));
+               return;
+            }
+            for (size_t i = 0; i != n; ++i)
+            {
+               if (std::find(v.begin(), v.end(), i) != v.end())
+                  continue;
+
+               std::vector<size_t> new_v = v;
+               new_v.push_back(i);
+               generate(std::move(new_v));
+            }
+         };
+
+         generate({});
+         return result;
+      }
+
+      std::vector<solver_t::point_t> find_angle_points(matrix_t const & matrix, matrix_t const & rhs)
       {
          size_t m = matrix.size1(),
                n = matrix.size2();
@@ -94,7 +115,40 @@ namespace transportation
          // HACK
          size_t rank = m - 1; // I hope it's always true in our case, but I'm not sure :(
 
-         return {};
+         std::vector<solver_t::point_t> result;
+         for (std::vector<size_t> subset : generated_ordered_combinations(n, rank))
+         {
+            assert(subset.size() == rank);
+            matrix_t equations(rank, rank);
+            for (size_t i = 0; i != rank; ++i)
+            {
+               for (size_t j = 0; j != rank; ++j)
+               {
+                  equations(i, j) = matrix(i, subset[j]);
+               }
+            }
+            matrix_t new_rhs(rank, 1);
+            for (size_t i = 0; i != rank; ++i)
+               new_rhs(i, 0) = rhs(i, 0);
+
+            std::vector<double> solution = solve_linear_system(equations, new_rhs);
+            if (solution.empty())
+               continue;
+
+            std::clog << "Equations: " << equations << std::endl
+                      << "new_rhs: " << new_rhs << std::endl
+                      ;
+            boost::copy(solution, std::ostream_iterator<double>(std::clog, " "));
+            std::clog << std::endl;
+            std::vector<double> angle_point(n, 0);
+            for (size_t i = 0; i != subset.size(); ++i)
+            {
+               angle_point[subset[i]] = solution[i];
+            }
+            result.push_back(std::move(angle_point));
+         }
+
+         return result;
       }
    }
 
@@ -168,8 +222,7 @@ namespace transportation
 
             rhs(i, 0) = supply_[i];
          }
-
-         for (size_t j = 0; j != m; ++j)
+         for (size_t j = 0; j != n; ++j)
          {
             for (size_t k = 0; k != m * n; ++k)
             {
@@ -178,10 +231,6 @@ namespace transportation
 
             rhs(j + m, 0) = consume_[j];
          }
-
-//       std::clog << "Equations: " << equations << std::endl
-//               << "Rhs: " << rhs << std::endl
-//               ;
 
          return find_angle_points(equations, rhs);
       }
