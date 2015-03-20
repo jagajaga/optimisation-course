@@ -135,11 +135,11 @@ namespace transportation
             if (solution.empty())
                continue;
 
-            std::clog << "Equations: " << equations << std::endl
-                      << "new_rhs: " << new_rhs << std::endl
-                      ;
-            boost::copy(solution, std::ostream_iterator<double>(std::clog, " "));
-            std::clog << std::endl;
+//            std::clog << "Equations: " << equations << std::endl
+//                      << "new_rhs: " << new_rhs << std::endl
+//                      ;
+//            boost::copy(solution, std::ostream_iterator<double>(std::clog, " "));
+//            std::clog << std::endl;
             std::vector<double> angle_point(n, 0);
             for (size_t i = 0; i != subset.size(); ++i)
             {
