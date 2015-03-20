@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <cassert>
 #include <iterator>
+#include <deque>
 
 #include <boost/range/algorithm/copy.hpp>
 #include <boost/throw_exception.hpp>
@@ -19,6 +20,7 @@ namespace transportation
    {
       typedef boost::numeric::ublas::matrix<double> matrix_t;
       typedef boost::numeric::ublas::identity_matrix<double> identity_matrix_t;
+      typedef enum {VERT = -1, HOR = 1, ANY = 0} direction;
 
       /* Matrix inversion routine.
       Uses lu_factorize and lu_substitute in uBLAS to invert a matrix */
@@ -274,28 +276,132 @@ namespace transportation
 
       void improve_plan(coordinates_t const & to_increase)
       {
-          std::cout << result[to_increase.first][to_increase.second];
-          double theta = std::min(result[0][0], result[1][1]);
-          std::cerr << theta;
-          std::vector<coordinates_t> not_null;
+          std::vector<std::vector<char> > pre_calc(
+                  result.size(), std::vector<char>(result[0].size())
+          );
           for (int i = 0; i < result.size(); i++)
           {
               for (int j = 0; j < result[i].size(); j++)
               {
-                auto f = [i, j](int a, int b) 
-                    {
-                        return (i == j) ? a - b : a + b;
-                    };
-                result[i][j] = f(result[i][j], theta);
+                  pre_calc[i][j] = '?';
+              }
+          }
+          pre_calc[to_increase.second][to_increase.first] = 'S';
+          std::deque<coordinates_t> to_change;
+          std::vector<coordinates_t> not_null;
+          _buildCycle(pre_calc, to_increase, result.size(), result[0].size(), ANY, to_change);
+
+          for (auto it = to_change.begin(); it != to_change.end(); it++)
+          {
+                std::cout << it->first << " " << it->second << "\n";
+          }
+          double theta = 9999999999;
+          std::cout << "SIZE: " << to_change.size();
+          for (int i = 0; i < to_change.size(); i++)
+          {
+            if (i % 2)
+            { 
+               std::cout << to_change[i].first << " " << to_change[i].second << " PIZDA\n";
+               std::cout << result[to_change[i].first][to_change[i].second] << " HUY\n"; 
+               theta = result[to_change[i].first][to_change[i].second] < theta ? result[to_change[i].first][to_change[i].second] : theta;
+            }
+          }
+          std::cout << theta;
+          for (int i = 0; i < to_change.size(); i++)
+          {
+            if (i % 2) {
+                result[to_change[i].first][to_change[i].second] = result[to_change[i].first][to_change[i].second] - theta;
+            } else
+            {
+                result[to_change[i].first][to_change[i].second] = theta + result[to_change[i].first][to_change[i].second];
+            }
+          }
+          for (int i = 0; i < result.size(); i++)
+          {
+              for (int j = 0; j < result[i].size(); j++)
+              {
                 if (result[i][j] > 0) 
                 {
                     coordinates_t to_add(i,j);
                     not_null.push_back(to_add);
                 }
-              }
+               }
           }
           find_potentials(not_null);
+          //double theta = std::min(result[0][0], result[1][1]);
+          //std::cerr << theta;
+          //for (int i = 0; i < result.size(); i++)
+          //{
+              //for (int j = 0; j < result[i].size(); j++)
+              //{
+                  //auto f = [i, j](int a, int b) 
+                      //{
+                          //return (i == j) ? a - b : a + b;
+                      //};
+                  //result[i][j] = f(result[i][j], theta);
+                  //if (result[i][j] > 0) 
+                  //{
+                      //coordinates_t to_add(i,j);
+                      //not_null.push_back(to_add);
+                  //}
+              //}
+          //}
       }
+
+    bool _buildCycle(std::vector<std::vector<char> > A, coordinates_t curPoint, int m, int n, direction dir, std::deque<coordinates_t>& q)
+    {
+        if (dir == VERT || dir == ANY)
+        {
+            for (int i = 0; i < m; i++)
+            {
+                if (A[i][curPoint.first] == '?') // try
+                {
+                    std::vector<std::vector<char> > B = A;
+                    A[curPoint.second][curPoint.first] == '-' ? B[i][curPoint.first] = '+' :  B[i][curPoint.first] = '-';
+                    coordinates_t newPoint(curPoint.first, i);
+                    bool flag = _buildCycle(B, newPoint, m, n, HOR, q);
+
+                    if (flag)
+                    {
+                        q.push_front(curPoint);
+                        return true;
+                    }
+                }
+                else if (dir != ANY && A[i][curPoint.first] == 'S') // found cycle!
+                {
+                    q.push_front(curPoint);
+                    return true;
+                }
+            }
+        }
+
+        if (dir == HOR || dir == ANY)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                if (A[curPoint.second][i] == '?') // try
+                {
+                    std::vector<std::vector<char> > B = A;
+                    A[curPoint.second][curPoint.second] == '-' ? B[curPoint.second][i] = '+' :  B[curPoint.second][i] = '-';
+                    coordinates_t newPoint(i, curPoint.second);
+                    bool flag = _buildCycle(B, newPoint, m, n, VERT, q);
+
+                    if (flag)
+                    {
+                        q.push_front(curPoint);
+                        return true;
+                    }
+                }
+                else if (dir != ANY && A[curPoint.second][i] == 'S') // found cycle!
+                {
+                    q.push_front(curPoint);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
    private:
       std::vector<double> supply_, consume_;
