@@ -4,11 +4,11 @@
 #include <stdexcept>
 #include <cassert>
 #include <iterator>
-#include <deque>
 #include <functional>
 #include <random>
 
 #include <boost/range/algorithm/copy.hpp>
+#include <boost/range/algorithm/reverse.hpp>
 #include <boost/throw_exception.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/operation.hpp>
@@ -22,7 +22,6 @@ namespace transportation
    {
       typedef boost::numeric::ublas::matrix<double> matrix_t;
       typedef boost::numeric::ublas::identity_matrix<double> identity_matrix_t;
-      typedef enum {VERT = -1, HOR = 1, ANY = 0} direction;
 
       /* Matrix inversion routine.
       Uses lu_factorize and lu_substitute in uBLAS to invert a matrix */
@@ -107,15 +106,14 @@ namespace transportation
       std::vector<solver_t::point_t> find_angle_points(matrix_t const & matrix, matrix_t const & rhs)
       {
          size_t m = matrix.size1(),
-               n = matrix.size2();
+                n = matrix.size2();
 
          if (rhs.size1() != m || rhs.size2() != 1)
          {
             BOOST_THROW_EXCEPTION(std::runtime_error("Invalid rhs size"));
          }
 
-         // HACK
-         size_t rank = m - 1; // I hope it's always true in our case, but I'm not sure :(
+         size_t rank = m - 1; // It seems to be true
 
          std::vector<solver_t::point_t> result;
          for (std::vector<size_t> subset : generated_ordered_combinations(n, rank))
@@ -155,9 +153,9 @@ namespace transportation
 
       size_t generate_random(size_t n)
       {
-          std::uniform_int_distribution<size_t> distr(0, n - 1);
-          std::mt19937 generator;
-          return distr(generator);
+         std::uniform_int_distribution<size_t> distr(0, n - 1);
+         std::mt19937 generator;
+         return distr(generator);
       }
 
    }
@@ -173,7 +171,7 @@ namespace transportation
 
       size_t iterations_count;
 
-      implementation_t(std::istream& in)
+      implementation_t(std::istream & in)
          : solved(false)
          , iterations_count(0)
       {
@@ -219,7 +217,7 @@ namespace transportation
       std::vector<point_t> angle_points()
       {
          size_t m = suppliers_count,
-               n = consumers_count;
+                n = consumers_count;
          matrix_t equations(m + n, m * n);
          matrix_t rhs(m + n, 1);
 
@@ -297,7 +295,7 @@ namespace transportation
              else
                  others.push_back(v);
          }
-         
+
          while (new_visited.size() < consumers_count + suppliers_count - 1)
          {
              size_t idx = generate_random(others.size());
@@ -399,9 +397,15 @@ namespace transportation
          std::vector<std::vector<mark_t>> pre_calc(suppliers_count, std::vector<mark_t>(consumers_count, UNKNOWN));
 
          pre_calc[to_increase.first][to_increase.second] = START;
-         std::deque<coordinates_t> to_change;
-         std::function<bool(std::vector<std::vector<mark_t>> const &, coordinates_t const &, direction)> build_cycle =
-            [&](std::vector<std::vector<mark_t>> const & A, coordinates_t const & cur, direction dir)
+         std::vector<coordinates_t> to_change;
+         enum direction_t
+         {
+            VERT = -1,
+            ANY = 0,
+            HOR = 1,
+         };
+         std::function<bool(std::vector<std::vector<mark_t>> const &, coordinates_t const &, direction_t)> build_cycle =
+            [&](std::vector<std::vector<mark_t>> const & A, coordinates_t const & cur, direction_t dir)
          {
             size_t m = suppliers_count,
                    n = consumers_count;
@@ -410,7 +414,7 @@ namespace transportation
                for (size_t i = 0; i != m; ++i)
                {
 //                  if (result[i][cur.second] == 0) continue;
-                  if (A[i][cur.second] == UNKNOWN) // try
+                  if (A[i][cur.second] == UNKNOWN)
                   {
                      auto B = A;
                      B[i][cur.second] = A[cur.first][cur.second] == MINUS ? PLUS : MINUS;
@@ -419,13 +423,13 @@ namespace transportation
 
                      if (flag)
                      {
-                        to_change.push_front(cur);
+                        to_change.push_back(cur);
                         return true;
                      }
                   }
-                  else if (dir != ANY && A[i][cur.second] == START && A[cur.first][cur.second] == MINUS) // found cycle!
+                  else if (dir != ANY && A[i][cur.second] == START && A[cur.first][cur.second] == MINUS)
                   {
-                     to_change.push_front(cur);
+                     to_change.push_back(cur);
                      return true;
                   }
                }
@@ -436,7 +440,7 @@ namespace transportation
                for (size_t j = 0; j != n; ++j)
                {
 //                  if (result[cur.first][j] == 0) continue;
-                  if (A[cur.first][j] == UNKNOWN) // try
+                  if (A[cur.first][j] == UNKNOWN)
                   {
                      auto B = A;
                      B[cur.first][j] = A[cur.first][cur.second] == MINUS ? PLUS : MINUS;
@@ -445,13 +449,13 @@ namespace transportation
 
                      if (flag)
                      {
-                        to_change.push_front(cur);
+                        to_change.push_back(cur);
                         return true;
                      }
                   }
-                  else if (dir != ANY && A[cur.first][j] == START && A[cur.first][cur.second] == MINUS) // found cycle!
+                  else if (dir != ANY && A[cur.first][j] == START && A[cur.first][cur.second] == MINUS)
                   {
-                     to_change.push_front(cur);
+                     to_change.push_back(cur);
                      return true;
                   }
                }
@@ -461,6 +465,7 @@ namespace transportation
          };
 
          build_cycle(pre_calc, to_increase, ANY);
+         boost::reverse(to_change);
 
          assert(to_change.size() % 2 == 0);
 //         for (auto p : to_change)
@@ -519,7 +524,7 @@ namespace transportation
       std::vector<double> u_, v_;  // potentials
    };
 
-   solver_t::solver_t(std::istream& in)
+   solver_t::solver_t(std::istream & in)
       : pimpl_(new implementation_t(in))
    {
    }
